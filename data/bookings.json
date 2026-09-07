@@ -1,0 +1,44 @@
+[
+  {
+    "id": "PB-2170",
+    "service_name": "Home Deep Cleaning",
+    "service_price": 1499,
+    "receipt": {
+      "service_fee": 1050,
+      "worker_fee": 250,
+      "consumables_fee": 120,
+      "platform_fee": 79,
+      "gst_applied": true,
+      "gst_amount": 270,
+      "total_amount": 1499
+    },
+    "timing_slot": "Tomorrow Morning: 08:00 AM - 11:00 AM",
+    "address": "Knowledge park 2",
+    "customer_name": "Sanya Singh",
+    "customer_phone": "8737804181",
+    "customer_email": "sanyasingh4181@gmail.com",
+    "status": "Confirmed",
+    "created_at": "2026-09-07 20:12:50"
+  },
+  {
+    "id": "PB-2162",
+    "service_name": "Home Deep Cleaning",
+    "service_price": 1499,
+    "receipt": {
+      "service_fee": 1050,
+      "worker_fee": 250,
+      "consumables_fee": 120,
+      "platform_fee": 79,
+      "gst_applied": true,
+      "gst_amount": 270,
+      "total_amount": 1499
+    },
+    "timing_slot": "Tomorrow Morning: 08:00 AM - 11:00 AM",
+    "address": "Knowledge park 2",
+    "customer_name": "Sanya Singh",
+    "customer_phone": "8737804181",
+    "customer_email": "sanyasingh4181@gmail.com",
+    "status": "Confirmed",
+    "created_at": "2026-09-07 20:12:42"
+  }
+]

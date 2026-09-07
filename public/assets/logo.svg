@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="leafGradLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <linearGradient id="leafGradRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#0f5132" />
+    </linearGradient>
+    <linearGradient id="towerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80" />
+      <stop offset="50%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </linearGradient>
+    <linearGradient id="bldgGradLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#16a34a" />
+      <stop offset="100%" stop-color="#15803d" />
+    </linearGradient>
+    <linearGradient id="bldgGradRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22c55e" />
+      <stop offset="100%" stop-color="#166534" />
+    </linearGradient>
+    <filter id="softGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#15803d" flood-opacity="0.18" />
+    </filter>
+  </defs>
+
+  <!-- City Skyline Group -->
+  <g id="skyline" filter="url(#softGlow)">
+    <!-- Left Building 1 -->
+    <path d="M 148 200 L 176 200 L 176 245 L 148 245 Z" fill="#15803d" />
+    <!-- Left Building 2 with tiered geometry -->
+    <path d="M 174 145 L 192 145 L 205 158 L 205 170 L 180 170 L 180 270 L 155 270 L 155 168 L 174 168 Z" fill="url(#bldgGradLeft)" />
+    <!-- Left Building 3 -->
+    <path d="M 180 170 L 208 170 L 208 275 L 180 275 Z" fill="#16a34a" />
+    
+    <!-- Central Tower (Spire Tower) -->
+    <!-- Spire Needle -->
+    <polygon points="250,68 245,100 255,100" fill="#22c55e" />
+    <!-- Main Center Tower Body -->
+    <path d="M 243 100 L 257 100 L 268 135 L 270 300 L 230 300 L 232 135 Z" fill="url(#towerGrad)" />
+    <!-- Tower Windows / Accent Lines -->
+    <line x1="250" y1="110" x2="250" y2="280" stroke="#ffffff" stroke-width="1.5" stroke-opacity="0.4" stroke-dasharray="8,4" />
+
+    <!-- Right Building 1 (Angular Top) -->
+    <path d="M 276 205 L 309 175 L 309 285 L 276 285 Z" fill="url(#bldgGradRight)" />
+    
+    <!-- Right Building 2 (Geometric Top Notch) -->
+    <path d="M 316 120 L 344 140 L 344 158 L 325 158 L 325 192 L 340 192 L 340 270 L 316 270 Z" fill="#15803d" />
+  </g>
+
+  <!-- Cradle Leaves Group -->
+  <g id="cradle-leaves" filter="url(#softGlow)">
+    <!-- Left Leaf -->
+    <path d="M 235 365 C 190 365 110 320 108 208 C 160 220 220 270 235 365 Z" fill="url(#leafGradLeft)" />
+    <!-- Left Leaf Inner Vein Slit -->
+    <path d="M 162 272 C 185 295 210 325 224 352 C 205 328 175 295 162 272 Z" fill="#ffffff" opacity="0.95" />
+
+    <!-- Right Leaf -->
+    <path d="M 265 365 C 310 365 390 320 392 208 C 340 220 280 270 265 365 Z" fill="url(#leafGradRight)" />
+    <!-- Right Leaf Inner Vein Slit -->
+    <path d="M 338 272 C 315 295 290 325 276 352 C 295 328 325 295 338 272 Z" fill="#ffffff" opacity="0.95" />
+  </g>
+</svg>

@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GREENOX — Cleaner City, Better Life</title>
+  <meta name="description" content="GREENOX - Next Generation Urban Eco-Cleanliness, Waste Management, and Fast Response Platform." />
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- Leaflet Interactive Maps CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ====================================================
+       PAGE 1: AUTHENTICATION & MULTI-ROLE PORTAL
+  ==================================================== -->
+  <div id="authPage" class="page-view active">
+    <!-- Clean Minimalist Header -->
+    <header class="auth-header">
+      <div class="brand-logo-wrap">
+        <img src="assets/logo.svg" alt="GREENOX Logo" class="brand-logo-img" />
+        <div class="brand-text">
+          <span class="brand-title">GREENOX</span>
+          <span class="brand-tagline">Clean Earth Initiative</span>
+        </div>
+      </div>
+      <div class="auth-help-badge">
+        <i class="fa-solid fa-shield-halved"></i> Official Municipal & Eco Portal
+      </div>
+    </header>
+
+    <main class="auth-container">
+      <div class="auth-card-wrapper">
+        <!-- Role Selection Tabs (4 Options) -->
+        <div class="role-selector-container">
+          <div class="section-badge"><i class="fa-solid fa-users-gear"></i> SELECT PORTAL TYPE</div>
+          <div class="role-tabs" id="roleTabs">
+            <button type="button" class="role-tab active" data-role="citizen">
+              <i class="fa-solid fa-city"></i>
+              <span>Citizen</span>
+            </button>
+            <button type="button" class="role-tab" data-role="employee">
+              <i class="fa-solid fa-user-shield"></i>
+              <span>Employee</span>
+            </button>
+            <button type="button" class="role-tab" data-role="organization">
+              <i class="fa-solid fa-building-flag"></i>
+              <span>Organization</span>
+            </button>
+            <button type="button" class="role-tab admin-tab-btn" data-role="admin">
+              <i class="fa-solid fa-key"></i>
+              <span>Admin</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Auth Mode Toggle (Login vs Register) -->
+        <div class="auth-form-card">
+          <div class="form-mode-switch">
+            <button type="button" class="mode-btn active" id="tabLoginBtn" onclick="switchAuthMode('login')">
+              <i class="fa-solid fa-arrow-right-to-bracket"></i> Login
+            </button>
+            <button type="button" class="mode-btn" id="tabRegisterBtn" onclick="switchAuthMode('register')">
+              <i class="fa-solid fa-user-plus"></i> Register
+            </button>
+          </div>
+
+          <!-- Dynamic Role Banner -->
+          <div class="active-role-info" id="activeRoleBanner">
+            <i class="fa-solid fa-circle-info"></i> Portal Mode: <strong id="currentRoleText">Citizen</strong>
+          </div>
+
+          <!-- Alert/Notification Box -->
+          <div id="authAlert" class="alert-box hidden"></div>
+
+          <!-- ================= LOGIN FORM ================= -->
+          <form id="loginForm" class="auth-form" onsubmit="handleLogin(event)">
+            <div class="input-group">
+              <label for="loginPhone"><i class="fa-solid fa-phone"></i> Phone Number</label>
+              <input type="tel" id="loginPhone" placeholder="Enter registered phone number" required />
+            </div>
+
+            <div class="input-group">
+              <label for="loginEmail"><i class="fa-solid fa-envelope"></i> Email Address</label>
+              <input type="email" id="loginEmail" placeholder="Enter registered email address" required />
+            </div>
+
+            <div class="input-group">
+              <label for="loginPassword"><i class="fa-solid fa-lock"></i> Password</label>
+              <div class="password-input-wrap">
+                <input type="password" id="loginPassword" placeholder="Enter your password" required />
+                <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('loginPassword')" aria-label="Toggle password">
+                  <i class="fa-regular fa-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="primary-btn submit-auth-btn" id="loginSubmitBtn">
+              <span class="btn-text">Access Portal</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </button>
+
+            <div class="form-footer-notes">
+              <span>First time using GREENOX? <a href="javascript:void(0)" onclick="switchAuthMode('register')">Register here</a></span>
+            </div>
+          </form>
+
+          <!-- ================= REGISTRATION FORM ================= -->
+          <form id="registerForm" class="auth-form hidden" onsubmit="handleRegister(event)">
+            <div class="form-row">
+              <div class="input-group">
+                <label for="regFirstName"><i class="fa-solid fa-user"></i> First Name</label>
+                <input type="text" id="regFirstName" placeholder="e.g. Aarav" required />
+              </div>
+              <div class="input-group">
+                <label for="regSurname"><i class="fa-solid fa-user-tag"></i> Surname</label>
+                <input type="text" id="regSurname" placeholder="e.g. Sharma" required />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="input-group">
+                <label for="regPhone"><i class="fa-solid fa-phone"></i> Phone Number</label>
+                <input type="tel" id="regPhone" placeholder="10-digit mobile number" required />
+              </div>
+              <div class="input-group">
+                <label for="regEmail"><i class="fa-solid fa-envelope"></i> Email Address</label>
+                <input type="email" id="regEmail" placeholder="name@domain.com" required />
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="regAddress"><i class="fa-solid fa-location-dot"></i> Address / Landmark</label>
+              <input type="text" id="regAddress" placeholder="Apartment / Street / Sector details" required />
+            </div>
+
+            <div class="form-row">
+              <div class="input-group">
+                <label for="regPassword"><i class="fa-solid fa-lock"></i> Password</label>
+                <div class="password-input-wrap">
+                  <input type="password" id="regPassword" placeholder="Create password" required />
+                  <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('regPassword')" aria-label="Toggle password">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="input-group">
+                <label for="regConfirmPassword"><i class="fa-solid fa-lock-open"></i> Confirm Password</label>
+                <div class="password-input-wrap">
+                  <input type="password" id="regConfirmPassword" placeholder="Re-enter password" required />
+                  <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('regConfirmPassword')" aria-label="Toggle password">
+                    <i class="fa-regular fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Special GREENOX Admin Key Field (Key hidden per requirement) -->
+            <div class="input-group admin-key-box hidden" id="adminKeyGroup">
+              <label for="regAdminKey" class="admin-key-label">
+                <i class="fa-solid fa-shield-halved"></i> GREENOX Secret Security Key <span class="required-tag">(Required for Admin)</span>
+              </label>
+              <input type="password" id="regAdminKey" placeholder="Enter authorized security key" />
+              <div class="key-hint"><i class="fa-solid fa-key"></i> Key authorization required to register as Administrator.</div>
+            </div>
+
+            <button type="submit" class="primary-btn submit-auth-btn" id="registerSubmitBtn">
+              <span class="btn-text">Complete Registration & Save to CSV</span>
+              <i class="fa-solid fa-file-csv"></i>
+            </button>
+
+            <div class="form-footer-notes">
+              <span>Already registered? <a href="javascript:void(0)" onclick="switchAuthMode('login')">Login now</a></span>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ====================================================
+       PAGE 2: CITIZEN / USER DASHBOARD ("Cleaner City , Better Life .")
+  ==================================================== -->
+  <div id="mainDashboardPage" class="page-view">
+    
+    <!-- Top Navigation Bar -->
+    <header class="main-navbar">
+      <div class="nav-left">
+        <div class="brand-logo-wrap" onclick="scrollToTop()">
+          <img src="assets/logo.svg" alt="GREENOX" class="brand-logo-img" />
+          <div class="brand-text">
+            <span class="brand-title">GREENOX</span>
+            <span class="brand-badge-pill">Urban Cleanliness</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- Notification Bell with Dropdown -->
+        <div class="notification-wrapper">
+          <button type="button" class="icon-nav-btn" id="notifBellBtn" onclick="toggleNotifications()" aria-label="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="notif-badge" id="notifBadgeCount">0</span>
+          </button>
+          
+          <div class="notif-dropdown hidden" id="notifDropdown">
+            <div class="notif-header">
+              <h4><i class="fa-solid fa-bell"></i> Greenox Live Alerts</h4>
+              <span class="badge-live">Live</span>
+            </div>
+            <div class="notif-list" id="notifList">
+              <div class="notif-empty-state">
+                <i class="fa-solid fa-bell-slash"></i>
+                <p>No new notifications right now.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Random User Avatar with Profile Dropdown -->
+        <div class="avatar-profile-wrapper">
+          <button type="button" class="avatar-btn" id="userAvatarBtn" onclick="toggleProfileMenu()">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=d1fae5" alt="User Avatar" class="avatar-img" id="userAvatarImg" />
+            <span class="avatar-status-dot"></span>
+          </button>
+
+          <!-- Profile Popover / Dropdown -->
+          <div class="profile-popover hidden" id="profilePopover">
+            <div class="profile-card-header">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=d1fae5" alt="Profile" class="profile-header-avatar" id="popoverAvatarImg" />
+              <div class="profile-header-info">
+                <h4 id="profileFullName">User Name</h4>
+                <span class="profile-role-badge" id="profileRoleTag">Citizen</span>
+                <span class="profile-phone-text" id="profilePhoneTag"><i class="fa-solid fa-phone"></i> Phone</span>
+                <span class="profile-email-text" id="profileEmailTag"><i class="fa-solid fa-envelope"></i> Email</span>
+              </div>
+            </div>
+
+            <!-- User Address Section with Live Edit & Save -->
+            <div class="profile-address-section">
+              <div class="addr-header">
+                <span><i class="fa-solid fa-location-dot"></i> Registered Address</span>
+                <button type="button" class="edit-addr-btn" id="editAddrBtn" onclick="enableAddressEditing()">
+                  <i class="fa-solid fa-pen-to-square"></i> Edit
+                </button>
+              </div>
+              <div class="addr-display" id="addressDisplayBox">
+                <p id="profileAddressText">Registered address details...</p>
+              </div>
+              <div class="addr-edit-form hidden" id="addressEditBox">
+                <textarea id="editAddressInput" rows="2" placeholder="Update your address..."></textarea>
+                <div class="addr-edit-actions">
+                  <button type="button" class="btn-cancel" onclick="cancelAddressEditing()">Cancel</button>
+                  <button type="button" class="btn-save" onclick="saveUpdatedAddress()">Save & Sync CSV</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="profile-footer">
+              <button type="button" class="logout-btn" onclick="handleLogout()">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Hero & Action Section -->
+    <main class="dashboard-main-content">
+      
+      <!-- Main Title Section ("Cleaner City , Better Life .") -->
+      <section class="hero-title-section">
+        <div class="eco-tag-chip">
+          <i class="fa-solid fa-leaf"></i> GREENOX SMART CLEAN CITY NETWORK
+        </div>
+        <h1 class="main-green-title">Cleaner City , Better Life .</h1>
+        <p class="hero-subtitle">
+          Empowering citizens, workers, and organizations with instant AI-routed waste reporting, 
+          professional eco-cleaning bookings, and 24/7 rapid emergency hazard dispatch.
+        </p>
+
+        <!-- Live Impact Metric Stats -->
+        <div class="impact-stats-strip">
+          <div class="stat-pill">
+            <i class="fa-solid fa-recycle text-green"></i>
+            <div>
+              <strong id="statWasteCleaned">Live Dynamic</strong>
+              <span>Waste Cleaned</span>
+            </div>
+          </div>
+          <div class="stat-pill">
+            <i class="fa-solid fa-circle-check text-emerald"></i>
+            <div>
+              <strong id="statComplaintsSolved">0</strong>
+              <span>Complaints Solved</span>
+            </div>
+          </div>
+          <div class="stat-pill">
+            <i class="fa-solid fa-stopwatch text-blue"></i>
+            <div>
+              <strong id="statAvgResponse">24/7</strong>
+              <span>Fast Municipal Response</span>
+            </div>
+          </div>
+          <div class="stat-pill">
+            <i class="fa-solid fa-shield-heart text-gold"></i>
+            <div>
+              <strong id="statEcoRating">5.0 / 5</strong>
+              <span>Eco Satisfaction</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 Core Action Cards (Report Waste, Book Cleaning, Emergency Help) -->
+      <section class="core-actions-grid">
+        
+        <!-- CARD 1: REPORT WASTE -->
+        <div class="action-card card-report" onclick="openReportWasteModal()">
+          <div class="card-icon-bubble">
+            <i class="fa-solid fa-camera-retro"></i>
+          </div>
+          <div class="card-body">
+            <span class="card-badge">Geo-Tagged Reporting</span>
+            <h3>1. Report Waste</h3>
+            <p>Snap photo from camera or gallery, pick waste type, choose GPS location on map, and dispatch as immediate municipal task.</p>
+            <div class="card-action-link">
+              <span>Open Waste Reporter</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2: BOOK CLEANING -->
+        <div class="action-card card-booking" onclick="openBookCleaningModal()">
+          <div class="card-icon-bubble">
+            <i class="fa-solid fa-broom"></i>
+          </div>
+          <div class="card-body">
+            <span class="card-badge">Certified Services from ₹999</span>
+            <h3>2. Book Cleaning</h3>
+            <p>Schedule home deep clean, kitchen & washroom, corporate office, post construction & banquet sanitization with itemized receipt.</p>
+            <div class="card-action-link">
+              <span>Explore Cleaning Packages</span>
+              <i class="fa-solid fa-arrow-right"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 3: EMERGENCY HELP -->
+        <div class="action-card card-emergency" onclick="openEmergencyModal()">
+          <div class="card-icon-bubble">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="card-body">
+            <span class="card-badge emergency-badge">Rapid Hazard Response</span>
+            <h3>3. Emergency Help</h3>
+            <p>Instant dispatch for biohazard spillage, chemical runoff, drain overflow, or toxic waste fire at your location or custom point.</p>
+            <div class="card-action-link">
+              <span>Trigger Emergency SOS</span>
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ====================================================
+           SCROLLABLE SHOWCASE: REAL DATA OF SOLVED COMPLAINTS
+      ==================================================== -->
+      <section class="solved-showcase-section" id="showcaseSection">
+        <div class="section-title-wrap">
+          <div>
+            <div class="section-tag"><i class="fa-solid fa-circle-check"></i> VERIFIED COMMUNITY IMPACT</div>
+            <h2 class="section-heading">Real-Time Solved Complaints Feed</h2>
+            <p class="section-desc">Live verified records of reported waste cleared across city sectors, including before/after photo evidence and exact time consumed.</p>
+          </div>
+          <div class="showcase-counter-chip">
+            <span class="pulse-indicator"></span>
+            <span id="liveSolvedCount">0 Resolved Records</span>
+          </div>
+        </div>
+
+        <!-- Horizontal Scrollable Showcase Track -->
+        <div class="showcase-scroll-container">
+          <div class="showcase-cards-grid" id="showcaseFeedGrid">
+            <!-- Dynamically populated or empty state -->
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <img src="assets/logo.svg" alt="GREENOX" class="footer-logo" />
+          <div>
+            <strong>GREENOX</strong>
+            <p>Cleaner City , Better Life .</p>
+          </div>
+        </div>
+        <div class="footer-links">
+          <span><i class="fa-solid fa-shield-halved"></i> ISO 14001 Eco-Certified</span>
+          <span><i class="fa-solid fa-file-csv"></i> Registered CSV Synced</span>
+          <span><i class="fa-solid fa-clock"></i> 24x7 Municipal Support</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ====================================================
+       PAGE 3: DEDICATED ADMIN CONTROL PANEL (STRICTLY FOR ADMINS)
+  ==================================================== -->
+  <div id="adminDashboardPage" class="page-view">
+    <!-- Dedicated Admin Header -->
+    <header class="admin-topbar">
+      <div class="admin-topbar-left">
+        <div class="brand-logo-wrap">
+          <img src="assets/logo.svg" alt="GREENOX" class="brand-logo-img" />
+          <div class="brand-text">
+            <span class="brand-title">GREENOX</span>
+            <span class="admin-badge-tag"><i class="fa-solid fa-shield-halved"></i> Administrator Control Panel</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-topbar-right">
+        <a href="/api/admin/download-csv" class="download-csv-btn">
+          <i class="fa-solid fa-file-arrow-down"></i> Export registered_user.csv
+        </a>
+        
+        <div class="admin-user-pill">
+          <i class="fa-solid fa-user-shield text-green"></i>
+          <span id="adminTopbarName">Admin</span>
+          <button type="button" class="admin-logout-btn" onclick="handleLogout()">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="admin-main-container">
+      <!-- Admin Metric Stat Cards -->
+      <section class="admin-summary-grid">
+        <div class="admin-stat-card">
+          <div class="admin-stat-icon text-green"><i class="fa-solid fa-list-check"></i></div>
+          <div>
+            <span class="admin-stat-label">Total Tasks (Waste Reports)</span>
+            <strong class="admin-stat-num" id="adminStatTasks">0</strong>
+          </div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-icon text-blue"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+          <div>
+            <span class="admin-stat-label">Private Cleaning Bookings</span>
+            <strong class="admin-stat-num" id="adminStatBookings">0</strong>
+          </div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-icon text-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div>
+            <span class="admin-stat-label">Emergency SOS Calls</span>
+            <strong class="admin-stat-num" id="adminStatEmergencies">0</strong>
+          </div>
+        </div>
+        <div class="admin-stat-card">
+          <div class="admin-stat-icon text-gold"><i class="fa-solid fa-users"></i></div>
+          <div>
+            <span class="admin-stat-label">Registered Users in CSV</span>
+            <strong class="admin-stat-num" id="adminStatUsers">0</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Tab Controls -->
+      <div class="admin-panel-box">
+        <div class="admin-nav-tabs">
+          <button type="button" class="admin-tab active" onclick="switchAdminTab('tasks')">
+            <i class="fa-solid fa-list-check"></i>
+            <span>1. Tasks (Report Waste)</span>
+            <span class="tab-badge" id="adminTasksBadge">0</span>
+          </button>
+          <button type="button" class="admin-tab" onclick="switchAdminTab('bookings')">
+            <i class="fa-solid fa-file-invoice-dollar"></i>
+            <span>2. Private Bookings</span>
+            <span class="tab-badge" id="adminBookingsBadge">0</span>
+          </button>
+          <button type="button" class="admin-tab" onclick="switchAdminTab('emergencies')">
+            <i class="fa-solid fa-triangle-exclamation text-red"></i>
+            <span>3. Emergencies (SOS)</span>
+            <span class="tab-badge badge-red" id="adminEmgBadge">0</span>
+          </button>
+          <button type="button" class="admin-tab" onclick="switchAdminTab('users')">
+            <i class="fa-solid fa-users"></i>
+            <span>4. Registered Users (CSV)</span>
+            <span class="tab-badge" id="adminUsersBadge">0</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: TASKS (Report Waste Submissions with Headline = Address) -->
+        <div class="admin-tab-content active" id="adminTasksSection">
+          <div class="admin-section-header">
+            <h4><i class="fa-solid fa-list-check text-green"></i> Waste Incident Tasks (Headline = Reported Address)</h4>
+            <button type="button" class="refresh-btn" onclick="loadAdminData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>Headline (Reported Address)</th>
+                  <th>Waste Type</th>
+                  <th>Photo Evidence</th>
+                  <th>Reporter</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminTasksTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 2: PRIVATE BOOKINGS (Separated from Tasks) -->
+        <div class="admin-tab-content hidden" id="adminBookingsSection">
+          <div class="admin-section-header">
+            <h4><i class="fa-solid fa-file-invoice-dollar text-blue"></i> Private Cleaning Bookings & Receipts</h4>
+            <button type="button" class="refresh-btn" onclick="loadAdminData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Booking ID</th>
+                  <th>Customer Info</th>
+                  <th>Service Package</th>
+                  <th>Slot / Timing</th>
+                  <th>Service Address</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="adminBookingsTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 3: EMERGENCIES (High Priority SOS Calls) -->
+        <div class="admin-tab-content hidden" id="adminEmgSection">
+          <div class="admin-section-header">
+            <h4 class="text-red"><i class="fa-solid fa-siren"></i> High-Priority Emergency SOS Incidents</h4>
+            <button type="button" class="refresh-btn" onclick="loadAdminData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          </div>
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Emergency ID</th>
+                  <th>Type</th>
+                  <th>Caller Info</th>
+                  <th>Incident Address</th>
+                  <th>Emergency Details</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="adminEmgTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 4: REGISTERED USERS (CSV Data View) -->
+        <div class="admin-tab-content hidden" id="adminUsersSection">
+          <div class="admin-section-header">
+            <h4><i class="fa-solid fa-users text-gold"></i> Live Registered Users Database (Synced with `registered_user.csv`)</h4>
+            <a href="/api/admin/download-csv" class="download-csv-btn small-btn">
+              <i class="fa-solid fa-download"></i> Download registered_user.csv
+            </a>
+          </div>
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Phone Number</th>
+                  <th>Email</th>
+                  <th>First Name</th>
+                  <th>Surname</th>
+                  <th>Address</th>
+                  <th>Role</th>
+                  <th>Registered At</th>
+                </tr>
+              </thead>
+              <tbody id="adminUsersTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ====================================================
+       MODAL 1: REPORT WASTE (50% DIMENSION FORM)
+  ==================================================== -->
+  <div id="reportWasteModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'reportWasteModal')">
+    <div class="modal-card modal-half-dim">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-green"><i class="fa-solid fa-camera"></i></div>
+          <div>
+            <h3>Report Waste Incident</h3>
+            <span class="modal-sub">Submitted directly to Admin Portal as Task (Headline = Address)</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('reportWasteModal')" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="reportWasteForm" class="modal-body form-sequence" onsubmit="submitWasteReport(event)">
+        
+        <!-- Step 1: Add Photo (Camera / Gallery Upload) -->
+        <div class="form-seq-group">
+          <label class="seq-label"><span class="step-num">1</span> Add Incident Photo</label>
+          <div class="photo-upload-zone" id="reportPhotoZone">
+            <div class="upload-options-row">
+              <label for="cameraFileInput" class="upload-btn-chip">
+                <i class="fa-solid fa-camera"></i> Take Camera Photo
+              </label>
+              <label for="galleryFileInput" class="upload-btn-chip">
+                <i class="fa-solid fa-images"></i> Upload from Gallery
+              </label>
+              <input type="file" id="cameraFileInput" accept="image/*" capture="environment" class="hidden-file-input" onchange="handlePhotoUpload(event)" />
+              <input type="file" id="galleryFileInput" accept="image/*" class="hidden-file-input" onchange="handlePhotoUpload(event)" />
+            </div>
+
+            <!-- Preview box -->
+            <div class="photo-preview-wrap hidden" id="photoPreviewWrap">
+              <img id="reportPhotoPreview" src="" alt="Waste Preview" />
+              <button type="button" class="remove-photo-btn" onclick="removeSelectedPhoto()"><i class="fa-solid fa-trash"></i> Remove</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Waste Type (Scrollable Dropdown) -->
+        <div class="form-seq-group">
+          <label for="reportWasteType" class="seq-label"><span class="step-num">2</span> Select Waste Category</label>
+          <div class="custom-select-wrap">
+            <select id="reportWasteType" required>
+              <option value="" disabled selected>-- Choose Waste Category --</option>
+              <option value="Plastic & Dry Waste">🧴 Plastic & Non-Biodegradable Dry Waste</option>
+              <option value="Organic & Food Waste">🥬 Organic / Wet Food Spillage & Dump</option>
+              <option value="E-Waste & Electronics">💻 E-Waste (Batteries, Appliances, Chips)</option>
+              <option value="Hazardous & Chemical">🧪 Hazardous / Chemical / Toxic Runoff</option>
+              <option value="Construction Debris">🧱 Construction Debris, Rubble & Sand</option>
+              <option value="Sewage & Overflow">🚰 Sewage & Drainage Overflow</option>
+              <option value="Illegal Bulk Dumping">🚜 Illegal Commercial / Truck Bulk Dumping</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Step 3: Location Option (Interactive Map) -->
+        <div class="form-seq-group">
+          <div class="map-label-row">
+            <label class="seq-label"><span class="step-num">3</span> Pin Location on Map</label>
+            <button type="button" class="gps-locate-btn" onclick="locateUserGPS('reportMap')">
+              <i class="fa-solid fa-location-crosshairs"></i> Use My GPS Location
+            </button>
+          </div>
+          <div id="reportMap" class="interactive-map-box"></div>
+          <span class="map-hint"><i class="fa-solid fa-hand-pointer"></i> Click anywhere on map or drag the pin to set incident point.</span>
+        </div>
+
+        <!-- Step 4: Landmark / Address Option -->
+        <div class="form-seq-group">
+          <label for="reportAddressInput" class="seq-label"><span class="step-num">4</span> Exact Address / Landmark</label>
+          <input type="text" id="reportAddressInput" placeholder="e.g. Opposite Gate 2, Metro Station, Sector 15" required />
+          <span class="field-note">This address will be the primary Task headline in the Admin portal.</span>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('reportWasteModal')">Cancel</button>
+          <button type="submit" class="primary-btn submit-task-btn" id="submitReportBtn">
+            <i class="fa-solid fa-paper-plane"></i> Submit Waste Task
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       MODAL 2: BOOK CLEANING (SERVICES & ITEMIZED RECEIPT)
+  ==================================================== -->
+  <div id="bookCleaningModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'bookCleaningModal')">
+    <div class="modal-card modal-large-dim">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-emerald"><i class="fa-solid fa-broom"></i></div>
+          <div>
+            <h3>Book Professional Cleaning Service</h3>
+            <span class="modal-sub">Select package, inspect transparent receipt, pick slot and address</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('bookCleaningModal')" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body booking-grid-layout">
+        
+        <!-- Left: Service Packages Grid (7 Specified Packages) -->
+        <div class="services-column">
+          <h4 class="col-title"><i class="fa-solid fa-list-check"></i> Choose Cleaning Service</h4>
+          <div class="packages-list" id="packagesList">
+            
+            <div class="package-item active" data-name="Home Deep Cleaning" data-price="1499" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>Home Deep Cleaning</strong>
+                <span class="pkg-price">₹1499</span>
+              </div>
+              <p class="pkg-desc">Full room sanitized dusting, floor scrubbing, furniture care & window polishing.</p>
+            </div>
+
+            <div class="package-item" data-name="Kitchen and Washroom" data-price="999" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>Kitchen and Washroom</strong>
+                <span class="pkg-price">₹999</span>
+              </div>
+              <p class="pkg-desc">Degreasing chimney & tiles, sanitizing sanitaryware, fixtures & grout cleaning.</p>
+            </div>
+
+            <div class="package-item" data-name="Corporate Office" data-price="1999" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>Corporate Office</strong>
+                <span class="pkg-price">₹1999</span>
+              </div>
+              <p class="pkg-desc">Desk sanitization, carpet vacuuming, boardroom & pantry comprehensive cleanup.</p>
+            </div>
+
+            <div class="package-item" data-name="Post Construction" data-price="2999" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>Post Construction</strong>
+                <span class="pkg-price">₹2999</span>
+              </div>
+              <p class="pkg-desc">Paint mark removal, cement dust clearance, heavy debris scrub & chemical shine.</p>
+            </div>
+
+            <div class="package-item" data-name="Event and Banquet" data-price="4999" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>Event and Banquet</strong>
+                <span class="pkg-price">₹4999</span>
+              </div>
+              <p class="pkg-desc">Pre/post banquet hall cleanup, waste segregation, large stage & hall sanitizing.</p>
+            </div>
+
+            <div class="package-item" data-name="Hospital Sanitization" data-price="3999" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>Hospital Sanitization</strong>
+                <span class="pkg-price">₹3999</span>
+              </div>
+              <p class="pkg-desc">Hospital-grade antimicrobial sterilization, clinical waste safe disposal protocols.</p>
+            </div>
+
+            <div class="package-item" data-name="Custom Cleaning" data-price="5499" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>Custom Cleaning</strong>
+                <span class="pkg-price">₹5499</span>
+              </div>
+              <p class="pkg-desc">Tailored multi-story estate, industrial warehouse or specialized deep sanitation.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Right: Dynamic Itemized Receipt & Checkout Details -->
+        <div class="checkout-column">
+          
+          <!-- Itemized Receipt Box -->
+          <div class="receipt-box" id="bookingReceiptBox">
+            <div class="receipt-header">
+              <div class="receipt-logo"><img src="assets/logo.svg" alt="Greenox" /> GREENOX INVOICE</div>
+              <span class="receipt-tier-tag" id="receiptServiceName">Home Deep Cleaning</span>
+            </div>
+
+            <div class="receipt-line-items">
+              <div class="receipt-row">
+                <span>Base Service Fee</span>
+                <span id="rcptServiceFee">₹1,050</span>
+              </div>
+              <div class="receipt-row">
+                <span>Certified Worker Fees</span>
+                <span id="rcptWorkerFee">₹250</span>
+              </div>
+              <div class="receipt-row">
+                <span>Consumables & Eco-Solutions</span>
+                <span id="rcptEcoFee">₹120</span>
+              </div>
+              <div class="receipt-row">
+                <span>Platform Maintenance Fee</span>
+                <span id="rcptPlatformFee">₹79</span>
+              </div>
+
+              <!-- GST Toggle / Option -->
+              <div class="receipt-row gst-toggle-row">
+                <label for="gstCheckbox" class="gst-label">
+                  <input type="checkbox" id="gstCheckbox" checked onchange="recalculateReceipt()" />
+                  <span>Include GST (18% itemized breakdown)</span>
+                </label>
+                <span id="rcptGstAmount">Included</span>
+              </div>
+
+              <div class="receipt-divider"></div>
+
+              <div class="receipt-total-row">
+                <strong>Final Amount Payable</strong>
+                <strong class="receipt-total-price" id="rcptFinalTotal">₹1499</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timing Slot Selection -->
+          <div class="input-group">
+            <label for="bookingTimingSlot"><i class="fa-regular fa-clock"></i> Select Timing Slot</label>
+            <select id="bookingTimingSlot" required>
+              <option value="Immediate Express (within 2 hours)">⚡ Immediate Express (within 2 hours)</option>
+              <option value="Tomorrow Morning: 08:00 AM - 11:00 AM" selected>🌅 Tomorrow Morning: 08:00 AM - 11:00 AM</option>
+              <option value="Tomorrow Afternoon: 12:00 PM - 03:00 PM">☀️ Tomorrow Afternoon: 12:00 PM - 03:00 PM</option>
+              <option value="Tomorrow Evening: 04:00 PM - 07:00 PM">🌇 Tomorrow Evening: 04:00 PM - 07:00 PM</option>
+              <option value="Weekend Special Slot">📅 Upcoming Weekend Special</option>
+            </select>
+          </div>
+
+          <!-- Address with Interactive Map Picker -->
+          <div class="input-group">
+            <div class="map-label-row">
+              <label><i class="fa-solid fa-location-dot"></i> Service Address (Map Selected)</label>
+              <button type="button" class="gps-locate-btn" onclick="locateUserGPS('bookingMap')">
+                <i class="fa-solid fa-location-crosshairs"></i> Set GPS
+              </button>
+            </div>
+            <div id="bookingMap" class="interactive-map-box small-map"></div>
+            <input type="text" id="bookingAddressInput" placeholder="Selected Address for Cleaning Team" required />
+          </div>
+
+          <!-- Actions -->
+          <div class="booking-actions">
+            <button type="button" class="btn-secondary" onclick="closeModal('bookCleaningModal')">
+              <i class="fa-solid fa-house"></i> Go Back to Home
+            </button>
+            <button type="button" class="primary-btn confirm-booking-btn" onclick="confirmCleaningBooking()">
+              <i class="fa-solid fa-check"></i> Confirm Booking (Deliver to Admin)
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       MODAL 3: EMERGENCY HELP (SAME LOCATION vs RANDOM LOCATION)
+  ==================================================== -->
+  <div id="emergencyModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'emergencyModal')">
+    <div class="modal-card modal-medium-dim emergency-card-glow">
+      <div class="modal-header emergency-header-bg">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-red pulse-siren"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div>
+            <h3 class="text-red">GREENOX Emergency Hazard SOS</h3>
+            <span class="modal-sub">Priority Municipal Rapid Response Dispatched to Admin</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('emergencyModal')" aria-label="Close modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        
+        <!-- Emergency Type Selector (Option 1: Same Location, Option 2: Random Location) -->
+        <div class="emergency-type-tabs">
+          <button type="button" class="emg-tab active" id="emgSameLocBtn" onclick="switchEmergencyType('same_location')">
+            <i class="fa-solid fa-location-crosshairs"></i>
+            <div>
+              <strong>1. Same Location</strong>
+              <span>Use My Registered Address</span>
+            </div>
+          </button>
+          
+          <button type="button" class="emg-tab" id="emgRandomLocBtn" onclick="switchEmergencyType('random_location')">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <div>
+              <strong>2. Random Location</strong>
+              <span>Select Custom Spot / Map</span>
+            </div>
+          </button>
+        </div>
+
+        <form id="emergencyForm" onsubmit="submitEmergencyHelp(event)">
+          
+          <!-- Caller Name (Pre-filled from Registration) -->
+          <div class="form-row">
+            <div class="input-group">
+              <label for="emgCallerName"><i class="fa-solid fa-user-shield"></i> Caller Name (Registered)</label>
+              <input type="text" id="emgCallerName" readonly class="readonly-input" />
+            </div>
+            <div class="input-group">
+              <label for="emgCallerPhone"><i class="fa-solid fa-phone"></i> Contact Phone</label>
+              <input type="tel" id="emgCallerPhone" readonly class="readonly-input" />
+            </div>
+          </div>
+
+          <!-- Address Field -->
+          <div class="input-group" id="emgAddressGroup">
+            <label for="emgAddressInput"><i class="fa-solid fa-location-dot"></i> Emergency Address</label>
+            <input type="text" id="emgAddressInput" placeholder="Incident address" required />
+          </div>
+
+          <!-- Map Picker (Visible for Random Location) -->
+          <div class="form-seq-group hidden" id="emgMapContainer">
+            <div class="map-label-row">
+              <label class="seq-label">Pick Incident Location on Map</label>
+              <button type="button" class="gps-locate-btn" onclick="locateUserGPS('emgMap')">
+                <i class="fa-solid fa-location-crosshairs"></i> Use GPS
+              </button>
+            </div>
+            <div id="emgMap" class="interactive-map-box small-map"></div>
+          </div>
+
+          <!-- "What is an Emergency?" Description -->
+          <div class="input-group">
+            <label for="emgDetailsInput"><i class="fa-solid fa-circle-exclamation text-red"></i> What is the Emergency?</label>
+            <textarea id="emgDetailsInput" rows="3" placeholder="Describe the hazardous situation (e.g. chemical spill, sewer burst, toxic gas odor, landfill burning)..." required></textarea>
+          </div>
+
+          <div class="emergency-notice-strip">
+            <i class="fa-solid fa-shield-halved"></i> Submitting alerts the 24/7 Greenox Hazmat Emergency Division instantly.
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeModal('emergencyModal')">Cancel</button>
+            <button type="submit" class="danger-btn submit-emg-btn" id="submitEmgBtn">
+              <i class="fa-solid fa-truck-medical"></i> Dispatch Emergency Response
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Resolve Task Modal (Admin can upload After Photo & Time Consumed to Publish to Solved Complaints) -->
+  <div id="resolveTaskModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'resolveTaskModal')">
+    <div class="modal-card modal-small-dim">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-green"><i class="fa-solid fa-circle-check"></i></div>
+          <div>
+            <h3>Mark Task Resolved & Publish</h3>
+            <span class="modal-sub">Publishes directly to live Solved Complaints showcase</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('resolveTaskModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="resolveTaskForm" class="modal-body" onsubmit="submitTaskResolution(event)">
+        <input type="hidden" id="resolveTaskId" />
+        <div class="input-group">
+          <label for="resolveAfterPhotoUrl">After Photo Evidence URL</label>
+          <input type="url" id="resolveAfterPhotoUrl" placeholder="https://images.unsplash.com/..." required />
+        </div>
+        <div class="input-group">
+          <label for="resolveTimeConsumed">Time Consumed (Minutes)</label>
+          <input type="text" id="resolveTimeConsumed" placeholder="e.g. 25 mins" required />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('resolveTaskModal')">Cancel</button>
+          <button type="submit" class="primary-btn"><i class="fa-solid fa-check"></i> Publish to Solved Showcase</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Leaflet Interactive Maps JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Main Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>

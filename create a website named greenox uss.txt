@@ -1,0 +1,20 @@
+create a website named greenox uss this logo for the creation of the website use white backgroud 
+
+1. first page of the website has 4 option to login or register(register for first time (enter the first name then surname then phone number then email then passward then confirm passward whih is same as passward otherwise show confirm passward does not matched after registration save the data as backend and also in the file named registered_user.csv )  then in login option  the same phone number , email and passward matched with regitered data then login , if anyone wrong show the wrong detials , ) 1st for citizen 2nd for employee 3rd for organization 4th for admin (the admin portal have a special GREENOX key option time of registration which is GREEN@OX is this entered by user then regiration compelete otherwise show failed to login
+         and store the registered user data as backend and save this as a (.csv) file and named registered_user.csv the file contain the user phone number email and name , surname and address.
+
+
+2. after login  2nd page is designed with white background as ( top left corner logo of greenox name greenof , top right corner having a random avatar which has profile option (clicking it shows th full name then addres which can be change by the user then logout option if this click then go to the first page ) and notification bell with logo 
+then the main title shows (Cleaner City , Better Life . with dark green color)
+then below this title have three option 
+   1.report waste ( after clicking it a small form page open which dimensin 50% of main page from all sides 
+the page having option like in sequence add photo clicking it open the users camera where the user can select the photo from the gallery , then 2nd option waste type  it has scroll down having options type of waste which can be select by the user    , then location option where user can select the location clicking on it open google maps then the select the location from the google maps , then add or landmark / address option the submit after submiting all the data is filled is go to the admin portal as task with headline is adrees 
+
+   2. book cleaning option in which the user have an option for booking like home deep cleaning price ₹1499 , kitchen and washroom price ₹999 , corporate office  price ₹1999 , post construction price ₹2999, event and banquet price ₹4999, hospital sanitization price ₹3999, custom price ₹5499. if clicking on anyone show the recipt box contaion details or servise fees worker fees consumable and eco solution fees platfrom fees and add gst option then the final amoutn is same as given above 
+then timming option then address same as open google map after clicking address then kept the address selected in google map then confirm booking then after booking all the filled data recipt combined and deliveed to the admin portal  named private booking seperated by task option in admin page .
+this page also contaion go back to home option after clicking on it go to the first page 
+
+   3. emergency help option which has two option 1 same location (clicking on it then take the current address of the user then open a mini for complaint by the contain the name of user as login thime he entered the name then option is what is an emergency then submit option  after submiting it is delivered to the admin page as emergency ), 2 have the random location (after clicking on it option for address fill out and store the name of the user as he use as time of registration then what is an emergency then submit after submiting it deliver to the admit page as an emergency called 
+the page is almost created add scroll option which shows the real data of number of complaint solve and having the full detail like adrees photo of cleaning before and after and time consumed 
+
+ 

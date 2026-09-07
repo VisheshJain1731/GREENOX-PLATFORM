@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+cloudflared.exe
+tunnel.log
+*.log
+.gemini/
