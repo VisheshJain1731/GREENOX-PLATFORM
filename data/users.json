@@ -68,5 +68,25 @@
     "password": "aman7070",
     "role": "citizen",
     "created_at": "2026-09-07 20:19:20"
+  },
+  {
+    "first_name": "vyom",
+    "surname": "sharma",
+    "phone": "9368660579",
+    "email": "vyomvashistha524@gmail.com",
+    "address": "russia",
+    "password": "Vy@11",
+    "role": "citizen",
+    "created_at": "2026-09-08 11:10:19"
+  },
+  {
+    "first_name": "Qazi Mohammad",
+    "surname": "Adeeb",
+    "phone": "9170948608",
+    "email": "qazimdadeeb@gmail.com",
+    "address": "Jamalpur Belwa Chungi",
+    "password": "#Adeeb_01",
+    "role": "citizen",
+    "created_at": "2026-09-08 11:47:25"
   }
 ]

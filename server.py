@@ -443,6 +443,7 @@ if __name__ == '__main__':
     import subprocess
     import re
 
+    port = int(os.environ.get('PORT', 3000))
     local_ip = "127.0.0.1"
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -452,41 +453,71 @@ if __name__ == '__main__':
     except Exception:
         pass
 
-    # Start Cloudflare Tunnel in background thread if cloudflared.exe is present
+    # Start Cloudflare Tunnel in background supervisor thread if cloudflared.exe is present
     cf_exe = os.path.join(BASE_DIR, "cloudflared.exe")
     public_url_file = os.path.join(BASE_DIR, "PUBLIC_URL.txt")
 
     def run_tunnel():
-        if os.path.exists(cf_exe):
+        if not os.path.exists(cf_exe):
+            return
+
+        # Clean up any leftover cloudflared processes
+        try:
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/F", "/IM", "cloudflared.exe", "/T"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        while True:
             try:
                 log_path = os.path.join(BASE_DIR, "tunnel.log")
-                if os.path.exists(log_path):
-                    try:
-                        os.remove(log_path)
-                    except Exception:
-                        pass
+                cmd = [
+                    cf_exe, "tunnel",
+                    "--protocol", "http2",
+                    "--no-autoupdate",
+                    "--url", f"http://127.0.0.1:{port}",
+                    "--logfile", log_path
+                ]
                 proc = subprocess.Popen(
-                    [cf_exe, "tunnel", "--url", "http://127.0.0.1:3000", "--logfile", log_path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
                 )
-                for _ in range(60):
-                    time.sleep(0.5)
+
+                # Read log to detect the latest tunnel URL
+                for _ in range(120):
+                    time.sleep(0.3)
                     if os.path.exists(log_path):
-                        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                            content = f.read()
-                            match = re.search(r"https://[-a-zA-Z0-9.]+\.trycloudflare\.com", content)
-                            if match:
-                                pub_url = match.group(0)
-                                print("\n" + "=" * 60, flush=True)
-                                print("🌟 GLOBAL PUBLIC LINK (ACCESSIBLE ON ANY PHONE / ANDROID / DEVICE):", flush=True)
-                                print(f"👉 {pub_url}", flush=True)
-                                print("=" * 60 + "\n", flush=True)
-                                with open(public_url_file, "w", encoding="utf-8") as pf:
-                                    pf.write(pub_url)
-                                break
+                        try:
+                            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                                content = f.read()
+                                matches = re.findall(r"https://[-a-zA-Z0-9.]+\.trycloudflare\.com", content)
+                                if matches:
+                                    pub_url = matches[-1]
+                                    print("\n" + "=" * 65, flush=True)
+                                    print(">> GLOBAL PUBLIC LINK (ACCESSIBLE WORLDWIDE ON ANY PHONE / DEVICE):", flush=True)
+                                    print(f">> {pub_url}", flush=True)
+                                    print("=" * 65 + "\n", flush=True)
+                                    with open(public_url_file, "w", encoding="utf-8") as pf:
+                                        pf.write(pub_url)
+                                    found = True
+                                    break
+                        except Exception:
+                            pass
+                
+                # Monitor the process while it is alive
+                while proc.poll() is None:
+                    time.sleep(3)
+                
+                print("[!] Cloudflare Tunnel disconnected. Reconnecting in 3 seconds...", flush=True)
+                time.sleep(3)
+
             except Exception as e:
-                print(f"[!] Tunnel startup notice: {e}", flush=True)
+                print(f"[!] Tunnel supervisor notice: {e}", flush=True)
+                time.sleep(5)
 
     threading.Thread(target=run_tunnel, daemon=True).start()
 

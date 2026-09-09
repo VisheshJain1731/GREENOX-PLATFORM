@@ -5,6 +5,12 @@ import subprocess
 import re
 import urllib.request
 
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CF_EXE = os.path.join(BASE_DIR, "cloudflared.exe")
 URL_FILE = os.path.join(BASE_DIR, "PUBLIC_URL.txt")
@@ -23,19 +29,25 @@ def start_tunnel():
     download_cloudflared()
     
     if os.path.exists(CF_EXE):
-        print("[+] Starting Cloudflare Public Tunnel for GREENOX on port 3000...")
-        cmd = [CF_EXE, "tunnel", "--url", "http://127.0.0.1:3000"]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        try:
+            if sys.platform == "win32":
+                subprocess.run(["taskkill", "/F", "/IM", "cloudflared.exe", "/T"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            pass
+
+        print("[+] Starting Cloudflare Public Tunnel for GREENOX on port 3000 (HTTP/2 Mode)...")
+        cmd = [CF_EXE, "tunnel", "--protocol", "http2", "--no-autoupdate", "--url", "http://127.0.0.1:3000"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, encoding='utf-8', errors='ignore')
         
         tunnel_url = None
         for line in proc.stdout:
             match = re.search(r"https://[-a-zA-Z0-9.]+\.trycloudflare\.com", line)
             if match:
                 tunnel_url = match.group(0)
-                print("\n" + "=" * 60)
-                print("🌟 GREENOX LIVE PUBLIC ACCESS LINK (ACCESSIBLE TO ALL DEVICES):")
-                print(f"👉 {tunnel_url}")
-                print("=" * 60 + "\n")
+                print("\n" + "=" * 65)
+                print(">> GREENOX LIVE PUBLIC ACCESS LINK (ACCESSIBLE TO ALL DEVICES):")
+                print(f">> {tunnel_url}")
+                print("=" * 65 + "\n")
                 with open(URL_FILE, "w", encoding="utf-8") as f:
                     f.write(tunnel_url)
                 break
@@ -44,3 +56,4 @@ def start_tunnel():
 
 if __name__ == "__main__":
     start_tunnel()
+

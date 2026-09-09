@@ -1,5 +1,68 @@
 [
   {
+    "id": "PB-3493",
+    "service_name": "Event and Banquet",
+    "service_price": 4999,
+    "receipt": {
+      "service_fee": 3500,
+      "worker_fee": 850,
+      "consumables_fee": 450,
+      "platform_fee": 199,
+      "gst_applied": true,
+      "gst_amount": 900,
+      "total_amount": 4999
+    },
+    "timing_slot": "Weekend Special Slot",
+    "address": "Sector 6, Green Avenue (GPS: 28.4568, 77.4986)",
+    "customer_name": "1 1",
+    "customer_phone": "1",
+    "customer_email": "1@gmail.com",
+    "status": "Confirmed",
+    "created_at": "2026-09-08 16:01:33"
+  },
+  {
+    "id": "PB-8311",
+    "service_name": "Custom Cleaning",
+    "service_price": 5499,
+    "receipt": {
+      "service_fee": 3900,
+      "worker_fee": 950,
+      "consumables_fee": 450,
+      "platform_fee": 199,
+      "gst_applied": true,
+      "gst_amount": 990,
+      "total_amount": 5499
+    },
+    "timing_slot": "Weekend Special Slot",
+    "address": "Jamalpur Belwa Chungi",
+    "customer_name": "Qazi Mohammad Adeeb",
+    "customer_phone": "9170948608",
+    "customer_email": "qazimdadeeb@gmail.com",
+    "status": "Confirmed",
+    "created_at": "2026-09-08 11:48:31"
+  },
+  {
+    "id": "PB-8300",
+    "service_name": "Home Deep Cleaning",
+    "service_price": 1499,
+    "receipt": {
+      "service_fee": 1050,
+      "worker_fee": 250,
+      "consumables_fee": 120,
+      "platform_fee": 79,
+      "gst_applied": true,
+      "gst_amount": 270,
+      "total_amount": 1499
+    },
+    "timing_slot": "Tomorrow Morning: 08:00 AM - 11:00 AM",
+    "address": "russia",
+    "customer_name": "vyom sharma",
+    "customer_phone": "9368660579",
+    "customer_email": "vyomvashistha524@gmail.com",
+    "status": "Confirmed",
+    "created_at": "2026-09-08 11:48:20"
+  },
+  {
     "id": "PB-2170",
     "service_name": "Home Deep Cleaning",
     "service_price": 1499,
