@@ -3,12 +3,13 @@ import sys
 import csv
 import json
 import time
+import math
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, send_file
 
 if sys.platform == 'win32':
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     except Exception:
         pass
 
@@ -22,6 +23,7 @@ TASKS_JSON = os.path.join(DATA_DIR, 'tasks.json')
 BOOKINGS_JSON = os.path.join(DATA_DIR, 'bookings.json')
 EMERGENCIES_JSON = os.path.join(DATA_DIR, 'emergencies.json')
 SHOWCASE_JSON = os.path.join(DATA_DIR, 'showcase.json')
+REPORTS_JSON = os.path.join(DATA_DIR, 'reports.json')
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, 'public', 'uploads'), exist_ok=True)
@@ -42,7 +44,7 @@ def save_json(filepath, data):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 # Initialize CSV file with required headers
-CSV_HEADERS = ['Phone Number', 'Email', 'First Name', 'Surname', 'Address', 'Role', 'Registered At']
+CSV_HEADERS = ['Phone Number', 'Email', 'First Name', 'Surname', 'Address', 'Role', 'Registered At', 'Aadhaar / Org ID', 'Employee Type / Org Name']
 
 def init_csv():
     if not os.path.exists(CSV_FILE):
@@ -61,7 +63,9 @@ def append_user_to_csv(user):
             user.get('surname', ''),
             user.get('address', ''),
             user.get('role', ''),
-            user.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            user.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            user.get('aadhaar') or user.get('org_id') or '',
+            user.get('employee_type') or user.get('org_name') or ''
         ])
 
 def rewrite_all_users_to_csv(users_list):
@@ -76,8 +80,23 @@ def rewrite_all_users_to_csv(users_list):
                 u.get('surname', ''),
                 u.get('address', ''),
                 u.get('role', ''),
-                u.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+                u.get('created_at', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                u.get('aadhaar') or u.get('org_id') or '',
+                u.get('employee_type') or u.get('org_name') or ''
             ])
+
+def validate_password_policy(password):
+    if not password:
+        return False, "Password cannot be empty."
+    if len(password) > 20:
+        return False, "Password must be maximum 20 characters in length."
+    has_digit = any(c.isdigit() for c in password)
+    has_special = any(not c.isalnum() for c in password)
+    if not has_digit:
+        return False, "Password must contain at least one digit (0-9)."
+    if not has_special:
+        return False, "Password must contain at least one special character (!@#$%^&*...)."
+    return True, ""
 
 # Ensure clean databases exist without dummy data
 def ensure_clean_storage():
@@ -92,6 +111,8 @@ def ensure_clean_storage():
         save_json(EMERGENCIES_JSON, [])
     if not os.path.exists(SHOWCASE_JSON):
         save_json(SHOWCASE_JSON, [])
+    if not os.path.exists(REPORTS_JSON):
+        save_json(REPORTS_JSON, [])
 
 ensure_clean_storage()
 
@@ -109,23 +130,53 @@ def register():
     confirm_password = data.get('confirm_password', '')
     role = data.get('role', 'citizen').strip().lower()
     admin_key = data.get('admin_key', '').strip()
+    aadhaar = data.get('aadhaar', '').strip()
+    employee_type = data.get('employee_type', 'govt').strip().lower()
+    org_id = data.get('org_id', '').strip()
+    org_name = data.get('org_name', '').strip()
+    is_google = data.get('is_google', False)
 
     # Basic validations
-    if not first_name or not surname or not phone or not email or not password:
-        return jsonify({"success": False, "message": "All required fields must be filled."}), 400
+    if not first_name or not phone or not email:
+        return jsonify({"success": False, "message": "First name, phone number, and email must be filled."}), 400
 
-    # Password match validation
-    if password != confirm_password:
-        return jsonify({"success": False, "message": "Confirm password does not match!"}), 400
+    # For standard registration (non-google), validate password
+    if not is_google:
+        if not password:
+            return jsonify({"success": False, "message": "Password is required."}), 400
+        if password != confirm_password:
+            return jsonify({"success": False, "message": "Confirm password does not match!"}), 400
+        
+        # Strict Password Policy check (0 to 20 chars, digit, special char)
+        is_valid_pwd, pwd_msg = validate_password_policy(password)
+        if not is_valid_pwd:
+            return jsonify({"success": False, "message": pwd_msg}), 400
+    else:
+        if not password:
+            password = "GoogleAuth@2026"
 
-    # Admin key validation (Requirement: Must match GREEN@OX)
+    # Employee Specific Validation
+    if role == 'employee':
+        if not aadhaar or len(aadhaar) != 10 or not aadhaar.isdigit():
+            return jsonify({"success": False, "message": "Aadhaar number must be exactly 10 numeric digits."}), 400
+        if employee_type not in ['govt', 'private']:
+            employee_type = 'govt'
+
+    # Organization Specific Validation
+    if role == 'organization':
+        if not org_id:
+            return jsonify({"success": False, "message": "Organization ID is required."}), 400
+        if not org_name:
+            return jsonify({"success": False, "message": "Organization Name is required."}), 400
+
+    # Admin key validation
     if role == 'admin':
         if admin_key != 'GREEN@OX':
-            return jsonify({"success": False, "message": "Failed to login/register: Invalid GREENOX Admin Key."}), 403
+            return jsonify({"success": False, "message": "Failed to register: Invalid GREENOX Admin Key."}), 403
 
     users = load_json(USERS_JSON, [])
     
-    # Check if duplicate phone or email exists for the same role
+    # Check duplicate phone or email for the role
     for u in users:
         if u.get('email') == email and u.get('role') == role:
             return jsonify({"success": False, "message": f"An account with email {email} already exists for role {role.capitalize()}."}), 400
@@ -140,6 +191,10 @@ def register():
         "address": address or "Green City Central",
         "password": password,
         "role": role,
+        "aadhaar": aadhaar if role == 'employee' else '',
+        "employee_type": employee_type if role == 'employee' else '',
+        "org_id": org_id if role == 'organization' else '',
+        "org_name": org_name if role == 'organization' else '',
         "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
 
@@ -150,7 +205,7 @@ def register():
     user_clean = {k: v for k, v in new_user.items() if k != 'password'}
     return jsonify({
         "success": True,
-        "message": "Registration completed successfully! Data saved to backend and registered_user.csv.",
+        "message": "Registration completed successfully!",
         "user": user_clean
     })
 
@@ -230,7 +285,7 @@ def create_report():
 
     new_task = {
         "id": task_id,
-        "headline": headline,  # Task headline is address
+        "headline": headline,
         "address": address,
         "waste_type": waste_type,
         "photo": photo or "https://images.unsplash.com/photo-1605600659908-0ef719419d41?auto=format&fit=crop&w=800&q=80",
@@ -240,7 +295,7 @@ def create_report():
         "reporter_phone": reporter_phone,
         "reporter_email": reporter_email,
         "status": "Pending",
-        "assigned_team": "Eco Response Squad",
+        "assigned_team": "Government Municipal Squad",
         "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
 
@@ -249,7 +304,7 @@ def create_report():
 
     return jsonify({
         "success": True,
-        "message": "Waste report submitted successfully! Dispatched as Task to Admin Portal.",
+        "message": "Waste report submitted successfully! Dispatched to Government Municipal team.",
         "task": new_task
     })
 
@@ -266,6 +321,8 @@ def create_booking():
     customer_name = data.get('customer_name', 'Registered User')
     customer_phone = data.get('customer_phone', '')
     customer_email = data.get('customer_email', '')
+    user_type = data.get('user_type', 'citizen')
+    org_name = data.get('org_name', '')
 
     bookings = load_json(BOOKINGS_JSON, [])
     booking_id = f"PB-{int(time.time() % 10000):04d}"
@@ -280,7 +337,10 @@ def create_booking():
         "customer_name": customer_name,
         "customer_phone": customer_phone,
         "customer_email": customer_email,
-        "status": "Confirmed",
+        "user_type": user_type,
+        "org_name": org_name,
+        "status": "Pending",
+        "assigned_team": "Private Eco-Clean Team",
         "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
 
@@ -289,7 +349,7 @@ def create_booking():
 
     return jsonify({
         "success": True,
-        "message": "Cleaning service booked successfully! Delivered to Admin Portal under Private Booking.",
+        "message": "Cleaning service booked successfully! Assigned to Private Cleaning Team.",
         "booking": new_booking
     })
 
@@ -301,6 +361,7 @@ def create_emergency():
     emg_type = data.get('type', 'same_location')
     caller_name = data.get('caller_name', 'Registered Citizen')
     caller_phone = data.get('caller_phone', '')
+    caller_email = data.get('caller_email', '')
     address = data.get('address', 'Current Location').strip()
     emergency_details = data.get('emergency_details', 'Critical Environmental Waste Emergency').strip()
     severity = data.get('severity', 'CRITICAL')
@@ -320,9 +381,10 @@ def create_emergency():
         "lng": lng,
         "caller_name": caller_name,
         "caller_phone": caller_phone,
+        "caller_email": caller_email,
         "severity": severity,
         "status": "DISPATCHED",
-        "dispatched_team": "Rapid Emergency Hazmat Squad",
+        "dispatched_team": "Private Emergency Hazmat Squad",
         "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
 
@@ -331,8 +393,136 @@ def create_emergency():
 
     return jsonify({
         "success": True,
-        "message": "EMERGENCY DISPATCHED! Admin center notified.",
+        "message": "EMERGENCY DISPATCHED! Alert sent to Admin and Private Emergency Teams.",
         "emergency": new_emergency
+    })
+
+# ----------------- EMPLOYEE DATA ROUTING API -----------------
+
+@app.route('/api/employee/data', methods=['GET'])
+def get_employee_data():
+    employee_type = request.args.get('type', 'govt').strip().lower()
+    
+    if employee_type == 'govt':
+        # Government employees ONLY see municipal waste report tasks
+        tasks = load_json(TASKS_JSON, [])
+        return jsonify({
+            "success": True,
+            "type": "govt",
+            "pending_tasks": [t for t in tasks if t.get('status') != 'Resolved'],
+            "all_tasks": tasks
+        })
+    else:
+        # Private employees ONLY see private cleaning bookings & nearby emergency requests
+        bookings = load_json(BOOKINGS_JSON, [])
+        emergencies = load_json(EMERGENCIES_JSON, [])
+        return jsonify({
+            "success": True,
+            "type": "private",
+            "pending_tasks": [b for b in bookings if b.get('status') != 'Completed'],
+            "all_bookings": bookings,
+            "emergencies": [e for e in emergencies if e.get('status') in ['DISPATCHED', 'EN_ROUTE']]
+        })
+
+# ----------------- CITIZEN HISTORY & TRACKING API -----------------
+
+@app.route('/api/citizen/history', methods=['GET'])
+def get_citizen_history():
+    email = request.args.get('email', '').strip().lower()
+    phone = request.args.get('phone', '').strip()
+
+    bookings = load_json(BOOKINGS_JSON, [])
+    tasks = load_json(TASKS_JSON, [])
+    emergencies = load_json(EMERGENCIES_JSON, [])
+
+    user_bookings = [b for b in bookings if (email and b.get('customer_email') == email) or (phone and b.get('customer_phone') == phone)]
+    user_tasks = [t for t in tasks if (email and t.get('reporter_email') == email) or (phone and t.get('reporter_phone') == phone)]
+    user_emergencies = [e for e in emergencies if (email and e.get('caller_email') == email) or (phone and e.get('caller_phone') == phone)]
+
+    return jsonify({
+        "success": True,
+        "bookings": user_bookings,
+        "tasks": user_tasks,
+        "emergencies": user_emergencies
+    })
+
+# ----------------- EMERGENCY RESOLVE & FALSE REPORT API -----------------
+
+@app.route('/api/emergency/resolve', methods=['POST'])
+def resolve_emergency():
+    data = request.get_json() or {}
+    emg_id = data.get('emergency_id')
+    photo = data.get('photo', '')
+    notes = data.get('notes', 'Emergency spot cleared and verified.')
+    employee_name = data.get('employee_name', 'Private Responder')
+
+    emergencies = load_json(EMERGENCIES_JSON, [])
+    target = None
+    for e in emergencies:
+        if e.get('id') == emg_id:
+            e['status'] = 'RESOLVED'
+            e['resolved_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            e['resolved_by'] = employee_name
+            e['resolved_photo'] = photo
+            e['resolved_notes'] = notes
+            target = e
+            break
+
+    if not target:
+        return jsonify({"success": False, "message": "Emergency request not found."}), 404
+
+    save_json(EMERGENCIES_JSON, emergencies)
+    return jsonify({"success": True, "message": f"Emergency {emg_id} resolved successfully!", "emergency": target})
+
+@app.route('/api/emergency/false-report', methods=['POST'])
+def report_false_emergency():
+    data = request.get_json() or {}
+    emg_id = data.get('emergency_id')
+    employee_name = data.get('employee_name', 'Private Employee')
+    employee_phone = data.get('employee_phone', '')
+    employee_gps = data.get('employee_gps', '')
+    emergency_location = data.get('emergency_location', '')
+    location_match_status = data.get('location_match_status', 'LOCATION NOT MATCHED')
+    photo = data.get('photo', '')
+    reason = data.get('reason', 'No active emergency found at coordinates.')
+
+    emergencies = load_json(EMERGENCIES_JSON, [])
+    target_emg = None
+    for e in emergencies:
+        if e.get('id') == emg_id:
+            e['status'] = 'FALSE_ALARM_REPORTED'
+            target_emg = e
+            break
+
+    save_json(EMERGENCIES_JSON, emergencies)
+
+    # Save to reports.json
+    reports = load_json(REPORTS_JSON, [])
+    report_id = f"RPT-{int(time.time() % 10000):04d}"
+    new_report = {
+        "id": report_id,
+        "emergency_id": emg_id,
+        "emergency_headline": target_emg.get('headline') if target_emg else 'Hazard SOS',
+        "caller_name": target_emg.get('caller_name') if target_emg else 'Citizen',
+        "caller_phone": target_emg.get('caller_phone') if target_emg else '',
+        "emergency_location": emergency_location or (target_emg.get('address') if target_emg else ''),
+        "employee_name": employee_name,
+        "employee_phone": employee_phone,
+        "employee_gps": employee_gps,
+        "location_match_status": location_match_status,
+        "photo_proof": photo,
+        "reason": reason,
+        "filed_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "status": "Under Review"
+    }
+
+    reports.insert(0, new_report)
+    save_json(REPORTS_JSON, reports)
+
+    return jsonify({
+        "success": True,
+        "message": "False emergency report submitted to Admin Investigation panel.",
+        "report": new_report
     })
 
 # ----------------- SHOWCASE / SOLVED COMPLAINTS API -----------------
@@ -355,6 +545,7 @@ def get_admin_data():
     emergencies = load_json(EMERGENCIES_JSON, [])
     showcase = load_json(SHOWCASE_JSON, [])
     users = load_json(USERS_JSON, [])
+    reports = load_json(REPORTS_JSON, [])
     
     users_clean = [{k: v for k, v in u.items() if k != 'password'} for u in users]
 
@@ -365,13 +556,15 @@ def get_admin_data():
         "emergencies": emergencies,
         "showcase": showcase,
         "users": users_clean,
+        "reports": reports,
         "stats": {
             "total_tasks": len(tasks),
             "pending_tasks": len([t for t in tasks if t.get('status') == 'Pending']),
             "private_bookings": len(bookings),
             "emergency_calls": len(emergencies),
             "solved_cases": len(showcase),
-            "registered_users": len(users)
+            "registered_users": len(users),
+            "false_reports": len(reports)
         }
     })
 
@@ -408,7 +601,7 @@ def update_task_status():
             "after_photo": after_photo or "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
             "time_consumed": time_consumed,
             "duration_minutes": int(time_consumed.split()[0]) if time_consumed.split()[0].isdigit() else 30,
-            "team": target_task.get('assigned_team', 'Greenox Delta Squad'),
+            "team": target_task.get('assigned_team', 'Government Municipal Squad'),
             "solved_at": "Just now",
             "rating": 5.0,
             "status": "Resolved & Verified"
@@ -417,6 +610,26 @@ def update_task_status():
         save_json(SHOWCASE_JSON, showcase)
 
     return jsonify({"success": True, "message": f"Task {task_id} marked as {new_status}!", "task": target_task})
+
+@app.route('/api/admin/update-booking-status', methods=['POST'])
+def update_booking_status():
+    data = request.get_json() or {}
+    booking_id = data.get('booking_id')
+    new_status = data.get('status', 'Completed')
+
+    bookings = load_json(BOOKINGS_JSON, [])
+    target_booking = None
+    for b in bookings:
+        if b.get('id') == booking_id:
+            b['status'] = new_status
+            target_booking = b
+            break
+
+    if not target_booking:
+        return jsonify({"success": False, "message": "Booking not found"}), 404
+
+    save_json(BOOKINGS_JSON, bookings)
+    return jsonify({"success": True, "message": f"Booking {booking_id} marked as {new_status}!", "booking": target_booking})
 
 @app.route('/api/admin/download-csv', methods=['GET'])
 def download_csv():
@@ -461,7 +674,6 @@ if __name__ == '__main__':
         if not os.path.exists(cf_exe):
             return
 
-        # Clean up any leftover cloudflared processes
         try:
             if sys.platform == "win32":
                 subprocess.run(["taskkill", "/F", "/IM", "cloudflared.exe", "/T"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -487,7 +699,6 @@ if __name__ == '__main__':
                     creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
                 )
 
-                # Read log to detect the latest tunnel URL
                 for _ in range(120):
                     time.sleep(0.3)
                     if os.path.exists(log_path):
@@ -503,12 +714,10 @@ if __name__ == '__main__':
                                     print("=" * 65 + "\n", flush=True)
                                     with open(public_url_file, "w", encoding="utf-8") as pf:
                                         pf.write(pub_url)
-                                    found = True
                                     break
                         except Exception:
                             pass
                 
-                # Monitor the process while it is alive
                 while proc.poll() is None:
                     time.sleep(3)
                 
@@ -529,13 +738,4 @@ if __name__ == '__main__':
     print("-> Users Database:          registered_user.csv")
     print("==================================================")
     
-    def open_browser():
-        time.sleep(1.5)
-        try:
-            webbrowser.open("http://127.0.0.1:3000")
-        except Exception:
-            pass
-
-    port = int(os.environ.get('PORT', 3000))
     app.run(host='0.0.0.0', port=port, debug=False)
-

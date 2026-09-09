@@ -8,3 +8,9 @@ Phone Number,Email,First Name,Surname,Address,Role,Registered At
 8173857070,aman2006upadhyay@gmail.com,Aman,Upadhyay,18 Bhagwan Market Road Tugalpur,citizen,2026-09-07 20:19:20
 9368660579,vyomvashistha524@gmail.com,vyom,sharma,russia,citizen,2026-09-08 11:10:19
 9170948608,qazimdadeeb@gmail.com,Qazi Mohammad,Adeeb,Jamalpur Belwa Chungi,citizen,2026-09-08 11:47:25
+2,2@gmail.com,2,2,2,employee,2026-09-09 16:04:56
+3,3@gmail.com,3,3,3,organization,2026-09-09 16:13:50
+9111111111,citizen.valid@test.com,Citizen,Tester,Sector 18 Green Park,citizen,2026-09-09 16:42:38,,
+9222222222,govt.worker@test.com,GovtWorker,Singh,Municipal Ward 4,employee,2026-09-09 16:42:38,9876543210,govt
+9333333333,private.squad@test.com,PrivateResponder,Kumar,Eco Quick Hub,employee,2026-09-09 16:42:38,8765432109,private
+9444444444,corporate.lead@greenox.org,Corporate,Lead,Cyber City Tower B,organization,2026-09-09 16:42:38,ORG-8899,EcoTech Global Industries

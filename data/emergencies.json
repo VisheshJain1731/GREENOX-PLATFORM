@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "EMG-2360",
+    "type": "same_location",
+    "headline": "EMERGENCY CALL: Chemical spillage foaming into municipal...",
+    "emergency_details": "Chemical spillage foaming into municipal drain",
+    "address": "Sector 18 Green Park Main Drain",
+    "lat": 28.6139,
+    "lng": 77.209,
+    "caller_name": "Citizen Tester",
+    "caller_phone": "9111111111",
+    "caller_email": "citizen.valid@test.com",
+    "severity": "CRITICAL",
+    "status": "FALSE_ALARM_REPORTED",
+    "dispatched_team": "Private Emergency Hazmat Squad",
+    "created_at": "2026-09-09 16:42:40"
+  }
+]

@@ -88,5 +88,81 @@
     "password": "#Adeeb_01",
     "role": "citizen",
     "created_at": "2026-09-08 11:47:25"
+  },
+  {
+    "first_name": "2",
+    "surname": "2",
+    "phone": "2",
+    "email": "2@gmail.com",
+    "address": "2",
+    "password": "2",
+    "role": "employee",
+    "created_at": "2026-09-09 16:04:56"
+  },
+  {
+    "first_name": "3",
+    "surname": "3",
+    "phone": "3",
+    "email": "3@gmail.com",
+    "address": "3",
+    "password": "3",
+    "role": "organization",
+    "created_at": "2026-09-09 16:13:50"
+  },
+  {
+    "first_name": "Citizen",
+    "surname": "Tester",
+    "phone": "9111111111",
+    "email": "citizen.valid@test.com",
+    "address": "Sector 18 Green Park",
+    "password": "Secure@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-09 16:42:38"
+  },
+  {
+    "first_name": "GovtWorker",
+    "surname": "Singh",
+    "phone": "9222222222",
+    "email": "govt.worker@test.com",
+    "address": "Municipal Ward 4",
+    "password": "Govt@123",
+    "role": "employee",
+    "aadhaar": "9876543210",
+    "employee_type": "govt",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-09 16:42:38"
+  },
+  {
+    "first_name": "PrivateResponder",
+    "surname": "Kumar",
+    "phone": "9333333333",
+    "email": "private.squad@test.com",
+    "address": "Eco Quick Hub",
+    "password": "Priv@123",
+    "role": "employee",
+    "aadhaar": "8765432109",
+    "employee_type": "private",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-09 16:42:38"
+  },
+  {
+    "first_name": "Corporate",
+    "surname": "Lead",
+    "phone": "9444444444",
+    "email": "corporate.lead@greenox.org",
+    "address": "Cyber City Tower B",
+    "password": "Corp@123",
+    "role": "organization",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "ORG-8899",
+    "org_name": "EcoTech Global Industries",
+    "created_at": "2026-09-09 16:42:38"
   }
 ]
