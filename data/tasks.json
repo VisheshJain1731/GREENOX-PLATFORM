@@ -1,5 +1,22 @@
 [
   {
+    "id": "TASK-0733",
+    "headline": "Sector 21 Garbage Pile",
+    "address": "Sector 21 Garbage Pile",
+    "waste_type": "Plastic & Dry Waste",
+    "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "lat": 28.6139,
+    "lng": 77.209,
+    "reporter_name": "EcoHero",
+    "reporter_phone": "9870060733",
+    "reporter_email": "citizen_60733@greenox.com",
+    "status": "Resolved",
+    "assigned_team": "Government Municipal Squad",
+    "created_at": "2026-09-17 21:28:53",
+    "awarded_points": 64,
+    "points_awarded_at": "2026-09-17 21:28:53"
+  },
+  {
     "id": "TASK-2358",
     "headline": "Opposite Metro Gate 3, Sector 62",
     "address": "Opposite Metro Gate 3, Sector 62",

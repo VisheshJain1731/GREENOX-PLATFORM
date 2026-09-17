@@ -4,6 +4,7 @@ import csv
 import json
 import time
 import math
+import random
 from datetime import datetime
 from flask import Flask, request, jsonify, send_from_directory, send_file
 
@@ -209,6 +210,13 @@ def register():
         "user": user_clean
     })
 
+LOGIN_ATTEMPTS = {}  # key: ip_role_id -> {"attempts": int, "lockout_until": float}
+
+def get_client_ip():
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
@@ -220,6 +228,32 @@ def login():
     if not phone or not email or not password:
         return jsonify({"success": False, "message": "Please enter Phone Number, Email, and Password."}), 400
 
+    # Rate limiting key by client IP + role + user identifier
+    ip = get_client_ip()
+    user_id_key = f"{email}|{phone}" if (email or phone) else "unknown"
+    lock_key = f"{ip}:{role}:{user_id_key}"
+
+    now = time.time()
+    attempt_info = LOGIN_ATTEMPTS.get(lock_key, {"attempts": 0, "lockout_until": 0})
+
+    # Check if currently in 3-minute lockout
+    if attempt_info.get("lockout_until", 0) > now:
+        remaining = int(attempt_info["lockout_until"] - now)
+        mins = remaining // 60
+        secs = remaining % 60
+        time_str = f"{mins} min {secs} sec" if mins > 0 else f"{secs} sec"
+        return jsonify({
+            "success": False,
+            "locked": True,
+            "remaining_seconds": remaining,
+            "message": f"Too many failed login attempts! Login refused. Please wait {time_str} before trying again (3-minute lockout)."
+        }), 429
+
+    # If lockout expired, reset attempts
+    if attempt_info.get("lockout_until", 0) > 0 and attempt_info.get("lockout_until", 0) <= now:
+        attempt_info = {"attempts": 0, "lockout_until": 0}
+        LOGIN_ATTEMPTS[lock_key] = attempt_info
+
     users = load_json(USERS_JSON, [])
     
     matched_user = None
@@ -229,10 +263,33 @@ def login():
             break
 
     if not matched_user:
-        return jsonify({
-            "success": False,
-            "message": "Wrong details entered! Phone number, email, and password must match registered records."
-        }), 401
+        current_attempts = attempt_info.get("attempts", 0) + 1
+        if current_attempts >= 7:
+            # Trigger 3-minute lockout (180 seconds)
+            attempt_info["attempts"] = current_attempts
+            attempt_info["lockout_until"] = now + 180
+            LOGIN_ATTEMPTS[lock_key] = attempt_info
+            return jsonify({
+                "success": False,
+                "locked": True,
+                "remaining_seconds": 180,
+                "message": "Maximum 7 login attempts exceeded! Access is locked and login refused for 3 minutes."
+            }), 429
+        else:
+            attempt_info["attempts"] = current_attempts
+            LOGIN_ATTEMPTS[lock_key] = attempt_info
+            attempts_left = 7 - current_attempts
+            return jsonify({
+                "success": False,
+                "attempts_left": attempts_left,
+                "message": f"Wrong details entered! Phone number, email, and password must match registered records. Attempts remaining: {attempts_left}/7."
+            }), 401
+
+    # Login successful: reset failed attempt counter and clear force_logout if set
+    LOGIN_ATTEMPTS.pop(lock_key, None)
+    if matched_user.get('force_logout'):
+        matched_user['force_logout'] = False
+        save_json(USERS_JSON, users)
 
     user_clean = {k: v for k, v in matched_user.items() if k != 'password'}
     return jsonify({
@@ -589,8 +646,38 @@ def update_task_status():
 
     save_json(TASKS_JSON, tasks)
 
-    # If resolved, add to public showcase feed
+    # If resolved, add to public showcase feed and award Greenox points to the citizen reporter
     if new_status == 'Resolved':
+        # Award 35 to 70 Greenox Points to citizen reporter
+        awarded_pts = target_task.get('awarded_points')
+        if not awarded_pts:
+            awarded_pts = random.randint(35, 70)
+            target_task['awarded_points'] = awarded_pts
+            target_task['points_awarded_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            # Find reporter user in users.json and credit points
+            rep_email = target_task.get('reporter_email', '').strip().lower()
+            rep_phone = target_task.get('reporter_phone', '').strip()
+            if rep_email or rep_phone:
+                all_users = load_json(USERS_JSON, [])
+                for u in all_users:
+                    if (rep_email and u.get('email', '').strip().lower() == rep_email) or \
+                       (rep_phone and u.get('phone', '').strip() == rep_phone):
+                        u['greenox_points'] = u.get('greenox_points', 0) + awarded_pts
+                        if 'points_history' not in u:
+                            u['points_history'] = []
+                        u['points_history'].insert(0, {
+                            "id": f"PTS-{int(time.time() % 100000):05d}",
+                            "type": "earned",
+                            "points": awarded_pts,
+                            "reason": f"Complaint #{target_task.get('id')} resolved by employee squad ({target_task.get('headline')})",
+                            "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        })
+                        break
+                save_json(USERS_JSON, all_users)
+
+        save_json(TASKS_JSON, tasks)
+
         showcase = load_json(SHOWCASE_JSON, [])
         new_showcase_item = {
             "id": f"CASE-{int(time.time() % 10000):04d}",
@@ -610,6 +697,224 @@ def update_task_status():
         save_json(SHOWCASE_JSON, showcase)
 
     return jsonify({"success": True, "message": f"Task {task_id} marked as {new_status}!", "task": target_task})
+
+# ----------------- CITIZEN GREENOX POINTS & REDEEM API -----------------
+
+REWARD_PLANS = {
+    "govt_travel_30": {
+        "id": "govt_travel_30",
+        "name": "30% OFF on Government Travel Vehicle (Train / Bus)",
+        "cost": 200,
+        "type": "discount",
+        "description": "Valid across government regional trains, state buses & municipal metro passes."
+    },
+    "cashback_5": {
+        "id": "cashback_5",
+        "name": "₹5 Cashback Reward",
+        "cost": 100,
+        "type": "cashback",
+        "description": "Instant Rs. 5 digital cashback voucher credited to your registered wallet / account."
+    },
+    "free_bus_ride": {
+        "id": "free_bus_ride",
+        "name": "Free 1-Time Government Bus Service",
+        "cost": 1000,
+        "type": "free_pass",
+        "description": "100% Free single ride pass across all city municipal & state government buses."
+    }
+}
+
+@app.route('/api/citizen/points', methods=['GET'])
+def get_citizen_points():
+    email = request.args.get('email', '').strip().lower()
+    phone = request.args.get('phone', '').strip()
+
+    users = load_json(USERS_JSON, [])
+    matched = None
+    for u in users:
+        if (email and u.get('email', '').strip().lower() == email) or (phone and u.get('phone', '').strip() == phone):
+            matched = u
+            break
+
+    if not matched:
+        return jsonify({"success": True, "points": 0, "history": [], "vouchers": []})
+
+    return jsonify({
+        "success": True,
+        "points": matched.get('greenox_points', 0),
+        "history": matched.get('points_history', []),
+        "vouchers": matched.get('redeemed_vouchers', [])
+    })
+
+@app.route('/api/citizen/redeem', methods=['POST'])
+def redeem_points():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    phone = data.get('phone', '').strip()
+    reward_id = data.get('reward_id', '').strip()
+
+    if reward_id not in REWARD_PLANS:
+        return jsonify({"success": False, "message": "Invalid reward selection."}), 400
+
+    plan = REWARD_PLANS[reward_id]
+    cost = plan["cost"]
+
+    users = load_json(USERS_JSON, [])
+    matched_user = None
+    for u in users:
+        if (email and u.get('email', '').strip().lower() == email) or (phone and u.get('phone', '').strip() == phone):
+            matched_user = u
+            break
+
+    if not matched_user:
+        return jsonify({"success": False, "message": "Citizen account not found."}), 404
+
+    current_points = matched_user.get('greenox_points', 0)
+    if current_points < cost:
+        return jsonify({
+            "success": False,
+            "message": f"Insufficient Greenox Points! Required: {cost} points, You have: {current_points} points."
+        }), 400
+
+    # Deduct points
+    matched_user['greenox_points'] = current_points - cost
+
+    # Generate unique digital voucher code
+    prefix_map = {
+        "govt_travel_30": "GOVT-TRV30",
+        "cashback_5": "CB-RS5",
+        "free_bus_ride": "GOVT-BUS-FREE"
+    }
+    code_prefix = prefix_map.get(reward_id, "GRN-RWD")
+    voucher_code = f"{code_prefix}-{int(time.time() % 100000):05d}"
+
+    voucher = {
+        "id": f"VCH-{int(time.time() % 10000):04d}",
+        "code": voucher_code,
+        "reward_id": reward_id,
+        "reward_name": plan["name"],
+        "cost": cost,
+        "description": plan["description"],
+        "redeemed_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "expires_at": "Valid for 60 Days",
+        "status": "ACTIVE / READY TO USE"
+    }
+
+    if 'redeemed_vouchers' not in matched_user:
+        matched_user['redeemed_vouchers'] = []
+    matched_user['redeemed_vouchers'].insert(0, voucher)
+
+    if 'points_history' not in matched_user:
+        matched_user['points_history'] = []
+    matched_user['points_history'].insert(0, {
+        "id": f"PTS-{int(time.time() % 100000):05d}",
+        "type": "redeemed",
+        "points": -cost,
+        "reason": f"Redeemed: {plan['name']} (Voucher: {voucher_code})",
+        "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    })
+
+    save_json(USERS_JSON, users)
+
+    return jsonify({
+        "success": True,
+        "message": f"Successfully redeemed '{plan['name']}'! Your coupon code is {voucher_code}.",
+        "voucher": voucher,
+        "remaining_points": matched_user['greenox_points']
+    })
+
+# ----------------- ADMIN USER MANAGEMENT & SESSION STATUS -----------------
+
+@app.route('/api/admin/delete-user', methods=['POST'])
+def admin_delete_user():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    phone = data.get('phone', '').strip()
+    role = data.get('role', '').strip().lower()
+
+    if not email and not phone:
+        return jsonify({"success": False, "message": "Email or Phone required to identify user."}), 400
+
+    users = load_json(USERS_JSON, [])
+    original_len = len(users)
+
+    # Filter out target user
+    users = [
+        u for u in users
+        if not (
+            ((email and u.get('email', '').strip().lower() == email) or (phone and u.get('phone', '').strip() == phone))
+            and (not role or u.get('role', '').strip().lower() == role)
+        )
+    ]
+
+    if len(users) == original_len:
+        return jsonify({"success": False, "message": "User not found in registered database."}), 404
+
+    save_json(USERS_JSON, users)
+    rewrite_all_users_to_csv(users)
+
+    return jsonify({
+        "success": True,
+        "message": "User permanently removed and deleted from GREENOX platform and registered_user.csv!"
+    })
+
+@app.route('/api/admin/logout-user', methods=['POST'])
+def admin_logout_user():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    phone = data.get('phone', '').strip()
+    role = data.get('role', '').strip().lower()
+
+    users = load_json(USERS_JSON, [])
+    updated = False
+    for u in users:
+        if ((email and u.get('email', '').strip().lower() == email) or (phone and u.get('phone', '').strip() == phone)) \
+           and (not role or u.get('role', '').strip().lower() == role):
+            u['force_logout'] = True
+            u['force_logout_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            updated = True
+
+    if not updated:
+        return jsonify({"success": False, "message": "User not found."}), 404
+
+    save_json(USERS_JSON, users)
+    return jsonify({
+        "success": True,
+        "message": "User session invalidated! The user will be logged out immediately upon next activity."
+    })
+
+@app.route('/api/user/session-status', methods=['GET'])
+def check_session_status():
+    email = request.args.get('email', '').strip().lower()
+    phone = request.args.get('phone', '').strip()
+    role = request.args.get('role', '').strip().lower()
+
+    if not email and not phone:
+        return jsonify({"valid": True})
+
+    users = load_json(USERS_JSON, [])
+    for u in users:
+        if ((email and u.get('email', '').strip().lower() == email) or (phone and u.get('phone', '').strip() == phone)) \
+           and (not role or u.get('role', '').strip().lower() == role):
+            if u.get('force_logout'):
+                u['force_logout'] = False
+                save_json(USERS_JSON, users)
+                return jsonify({
+                    "valid": False,
+                    "reason": "force_logout",
+                    "message": "Your session has been terminated by the GREENOX Administrator."
+                })
+            return jsonify({
+                "valid": True,
+                "greenox_points": u.get('greenox_points', 0)
+            })
+
+    # User no longer exists in users.json (was deleted)
+    return jsonify({
+        "valid": False,
+        "reason": "deleted",
+        "message": "Your account has been removed from the platform by the Administrator."
+    })
 
 @app.route('/api/admin/update-booking-status', methods=['POST'])
 def update_booking_status():

@@ -10,9 +10,15 @@ let currentRole = 'citizen';
 let currentAuthMode = 'login';
 let currentUser = null;
 let currentTheme = 'light';
+let currentCitizenPoints = 0;
+let citizenVouchers = [];
+let citizenPointsHistory = [];
 let selectedWastePhotoBase64 = '';
 let selectedFalsePhotoBase64 = '';
 let selectedEmgResolvePhotoBase64 = '';
+let selectedTaskResolvePhotoBase64 = '';
+let loginLockoutInterval = null;
+let sessionCheckInterval = null;
 let reportMap = null, reportMarker = null;
 let bookingMap = null, bookingMarker = null;
 let emgMap = null, emgMarker = null;
@@ -381,19 +387,57 @@ async function handleLogin(event) {
     const result = await response.json();
 
     if (result.success) {
+      if (loginLockoutInterval) {
+        clearInterval(loginLockoutInterval);
+        loginLockoutInterval = null;
+      }
       currentUser = result.user;
       localStorage.setItem('greenox_user', JSON.stringify(currentUser));
       showToast(`Welcome to GREENOX, ${currentUser.first_name}!`, 'success');
       transitionToDashboard(currentUser);
+    } else if (result.locked) {
+      startLoginLockoutTimer(result.remaining_seconds || 180, result.message);
+    } else if (result.attempts_left !== undefined) {
+      showAuthAlert(result.message || `Wrong details entered! Attempts remaining: ${result.attempts_left}/7.`, 'error');
     } else {
-      showAuthAlert('Wrong details entered! Phone number, email, and password must match registered records.', 'error');
+      showAuthAlert(result.message || 'Wrong details entered! Phone number, email, and password must match registered records.', 'error');
     }
   } catch (err) {
     showAuthAlert('Network error occurred during login.', 'error');
   } finally {
-    submitBtn.disabled = false;
-    submitBtn.querySelector('.btn-text').textContent = 'Access Portal';
+    if (!loginLockoutInterval) {
+      submitBtn.disabled = false;
+      submitBtn.querySelector('.btn-text').textContent = 'Access Portal';
+    }
   }
+}
+
+function startLoginLockoutTimer(seconds, message) {
+  const submitBtn = document.getElementById('loginSubmitBtn');
+  submitBtn.disabled = true;
+
+  if (loginLockoutInterval) clearInterval(loginLockoutInterval);
+
+  let remaining = seconds;
+  const updateLockoutDisplay = () => {
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const timeFormatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    submitBtn.querySelector('.btn-text').textContent = `Locked (${timeFormatted})`;
+    showAuthAlert(`⚠️ 7 Failed Attempts! Login refused for 3 minutes. Please wait: <strong>${timeFormatted}</strong> remaining.`, 'error');
+
+    if (remaining <= 0) {
+      clearInterval(loginLockoutInterval);
+      loginLockoutInterval = null;
+      submitBtn.disabled = false;
+      submitBtn.querySelector('.btn-text').textContent = 'Access Portal';
+      showAuthAlert('Lockout expired! You may now try logging in again.', 'success');
+    }
+    remaining--;
+  };
+
+  updateLockoutDisplay();
+  loginLockoutInterval = setInterval(updateLockoutDisplay, 1000);
 }
 
 function checkExistingSession() {
@@ -481,17 +525,40 @@ function transitionToDashboard(user) {
   document.getElementById('emgAddressInput').value = user.address || '';
   
   loadSolvedShowcaseFeed();
+  loadCitizenPoints();
+  startSessionStatusPolling();
 }
 
-function handleLogout() {
+function startSessionStatusPolling() {
+  if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+  sessionCheckInterval = setInterval(async () => {
+    if (!currentUser) return;
+    try {
+      const res = await fetch(`/api/user/session-status?email=${encodeURIComponent(currentUser.email)}&phone=${encodeURIComponent(currentUser.phone)}&role=${encodeURIComponent(currentUser.role)}`);
+      const data = await res.json();
+      if (!data.valid) {
+        clearInterval(sessionCheckInterval);
+        handleLogout(data.message || 'Session invalidated by Administrator.');
+      } else if (currentUser.role === 'citizen' && data.greenox_points !== undefined && data.greenox_points !== currentCitizenPoints) {
+        loadCitizenPoints();
+      }
+    } catch (e) {}
+  }, 8000);
+}
+
+function handleLogout(customMessage) {
   localStorage.removeItem('greenox_user');
   currentUser = null;
   if (employeePollingInterval) clearInterval(employeePollingInterval);
+  if (sessionCheckInterval) clearInterval(sessionCheckInterval);
 
   document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
   document.getElementById('authPage').classList.add('active');
   closeProfileMenu();
-  showToast('Logged out successfully.', 'info');
+  showToast(customMessage || 'Logged out successfully.', 'info');
+  if (customMessage) {
+    showAuthAlert(customMessage, 'error');
+  }
 }
 
 // ==========================================================================
@@ -1133,23 +1200,80 @@ function renderAdminUsers(users) {
   const tbody = document.getElementById('adminUsersTableBody');
   tbody.innerHTML = '';
   if (!users || users.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No registered users in database.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">No registered users in database.</td></tr>`;
     return;
   }
   users.forEach(u => {
+    const fullName = `${u.first_name} ${u.surname}`.trim();
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${u.phone}</td>
       <td>${u.email}</td>
-      <td><strong>${u.first_name} ${u.surname}</strong></td>
+      <td><strong>${fullName}</strong></td>
       <td>${u.address}</td>
       <td><span class="status-tag status-progress">${u.role.toUpperCase()}</span></td>
       <td>${u.aadhaar || u.org_id || '-'}</td>
       <td>${u.employee_type || u.org_name || '-'}</td>
       <td>${u.created_at || 'Recently'}</td>
+      <td>
+        <div class="admin-user-actions-row">
+          <button type="button" class="tbl-btn tbl-btn-logout" onclick="adminLogoutUser('${u.email}', '${u.phone}', '${u.role}', '${fullName}')" title="Force Logout User">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+          </button>
+          <button type="button" class="tbl-btn tbl-btn-delete" onclick="adminDeleteUser('${u.email}', '${u.phone}', '${u.role}', '${fullName}')" title="Remove User Permanently">
+            <i class="fa-solid fa-trash-can"></i> Remove
+          </button>
+        </div>
+      </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+async function adminLogoutUser(email, phone, role, name) {
+  if (!confirm(`Are you sure you want to FORCE LOGOUT "${name}" (${role}) from GREENOX? Their active session will be terminated immediately.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/logout-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phone, role })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`User "${name}" has been force logged out!`, 'success');
+      loadAdminData();
+    } else {
+      showToast(data.message || 'Logout action failed', 'error');
+    }
+  } catch (e) {
+    showToast('Network error performing force logout', 'error');
+  }
+}
+
+async function adminDeleteUser(email, phone, role, name) {
+  if (!confirm(`⚠️ DANGER: Are you sure you want to PERMANENTLY REMOVE & DELETE "${name}" (${role}) from the GREENOX database and registered_user.csv? This action cannot be undone.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, phone, role })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`User "${name}" removed and deleted permanently!`, 'success');
+      loadAdminData();
+    } else {
+      showToast(data.message || 'Delete action failed', 'error');
+    }
+  } catch (e) {
+    showToast('Network error deleting user', 'error');
+  }
 }
 
 // ==========================================================================
@@ -1681,16 +1805,51 @@ function updateBeforeAfterSlider(sliderId, afterWrapId, handleId) {
   handle.style.left = `${val}%`;
 }
 
+function handleTaskResolvePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    selectedTaskResolvePhotoBase64 = e.target.result;
+    document.getElementById('taskResolvePreview').src = selectedTaskResolvePhotoBase64;
+    document.getElementById('taskResolvePreviewWrap').classList.remove('hidden');
+    showToast('After-cleaning proof photo attached!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeTaskResolvePhoto() {
+  selectedTaskResolvePhotoBase64 = '';
+  const wrap = document.getElementById('taskResolvePreviewWrap');
+  if (wrap) wrap.classList.add('hidden');
+  const gInput = document.getElementById('resolveTaskGalleryInput');
+  const cInput = document.getElementById('resolveTaskCameraInput');
+  if (gInput) gInput.value = '';
+  if (cInput) cInput.value = '';
+}
+
 function openResolveTaskModal(taskId) {
   document.getElementById('resolveTaskId').value = taskId;
+  document.getElementById('resolveTimeConsumed').value = '25 mins';
+  removeTaskResolvePhoto();
   document.getElementById('resolveTaskModal').classList.remove('hidden');
 }
 
 async function submitTaskResolution(event) {
   event.preventDefault();
   const taskId = document.getElementById('resolveTaskId').value;
-  const afterPhoto = document.getElementById('resolveAfterPhotoUrl').value;
-  const timeConsumed = document.getElementById('resolveTimeConsumed').value;
+  const timeConsumed = document.getElementById('resolveTimeConsumed').value.trim() || '30 mins';
+
+  if (!selectedTaskResolvePhotoBase64) {
+    showToast('Please upload an after-cleaning proof photo from Gallery or Camera.', 'error');
+    return;
+  }
+
+  const submitBtn = document.getElementById('submitResolveBtn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Publishing Resolution...';
+  }
 
   try {
     const res = await fetch('/api/admin/update-task-status', {
@@ -1699,22 +1858,265 @@ async function submitTaskResolution(event) {
       body: JSON.stringify({
         task_id: taskId,
         status: 'Resolved',
-        after_photo: afterPhoto,
+        after_photo: selectedTaskResolvePhotoBase64,
         time_consumed: timeConsumed
       })
     });
 
     const result = await res.json();
     if (result.success) {
-      showToast(`Task ${taskId} resolved and published to showcase!`, 'success');
+      const awarded = result.task?.awarded_points;
+      const ptsMsg = awarded ? ` (+${awarded} Greenox Points awarded to citizen reporter)` : '';
+      showToast(`Task ${taskId} resolved and published to showcase!${ptsMsg}`, 'success');
       closeModal('resolveTaskModal');
+      removeTaskResolvePhoto();
       if (currentUser && currentUser.role === 'admin') loadAdminData();
       if (currentUser && currentUser.role === 'employee') loadEmployeeData();
+      if (currentUser && currentUser.role === 'citizen') loadCitizenPoints();
       loadSolvedShowcaseFeed();
+    } else {
+      showToast(result.message || 'Failed to update task', 'error');
     }
   } catch (err) {
     showToast('Failed to update task', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Mark Cleaned & Publish';
+    }
   }
+}
+
+// ==========================================================================
+// 14. CITIZEN GREENOX POINTS & REWARDS REDEMPTION
+// ==========================================================================
+
+async function loadCitizenPoints() {
+  if (!currentUser || currentUser.role !== 'citizen') return;
+  try {
+    const res = await fetch(`/api/citizen/points?email=${encodeURIComponent(currentUser.email)}&phone=${encodeURIComponent(currentUser.phone)}`);
+    const data = await res.json();
+    if (data.success) {
+      currentCitizenPoints = data.points || 0;
+      citizenVouchers = data.vouchers || [];
+      citizenPointsHistory = data.history || [];
+
+      // Update Nav and Dashboard Stat
+      const navPts = document.getElementById('navPointsBalance');
+      if (navPts) navPts.textContent = currentCitizenPoints;
+      const statPts = document.getElementById('statGreenoxPoints');
+      if (statPts) statPts.textContent = `${currentCitizenPoints} pts`;
+      const modalPts = document.getElementById('modalPointsBalance');
+      if (modalPts) modalPts.textContent = currentCitizenPoints;
+      const vchCount = document.getElementById('myVouchersCount');
+      if (vchCount) vchCount.textContent = citizenVouchers.length;
+
+      updateRewardMeters();
+      renderCitizenVouchers();
+      renderCitizenPointsHistory();
+    }
+  } catch (e) {
+    console.error('Error fetching citizen points:', e);
+  }
+}
+
+function updateRewardMeters() {
+  // Option 1: 30% Off Govt Travel (200 pts)
+  const pct1 = Math.min(100, Math.round((currentCitizenPoints / 200) * 100));
+  const fill1 = document.getElementById('meterFillGovtTravel');
+  const text1 = document.getElementById('meterTextGovtTravel');
+  const btn1 = document.getElementById('btnRedeemGovtTravel');
+  if (fill1) fill1.style.width = `${pct1}%`;
+  if (text1) text1.textContent = `${Math.min(currentCitizenPoints, 200)} / 200 pts (${pct1}%)`;
+  if (btn1) {
+    btn1.disabled = currentCitizenPoints < 200;
+    btn1.innerHTML = currentCitizenPoints >= 200 
+      ? '<i class="fa-solid fa-gift"></i> Redeem for 200 Points' 
+      : `<i class="fa-solid fa-lock"></i> Need ${200 - currentCitizenPoints} More Pts`;
+  }
+
+  // Option 2: Rs 5 Cashback (100 pts)
+  const pct2 = Math.min(100, Math.round((currentCitizenPoints / 100) * 100));
+  const fill2 = document.getElementById('meterFillCashback');
+  const text2 = document.getElementById('meterTextCashback');
+  const btn2 = document.getElementById('btnRedeemCashback');
+  if (fill2) fill2.style.width = `${pct2}%`;
+  if (text2) text2.textContent = `${Math.min(currentCitizenPoints, 100)} / 100 pts (${pct2}%)`;
+  if (btn2) {
+    btn2.disabled = currentCitizenPoints < 100;
+    btn2.innerHTML = currentCitizenPoints >= 100 
+      ? '<i class="fa-solid fa-gift"></i> Redeem for 100 Points' 
+      : `<i class="fa-solid fa-lock"></i> Need ${100 - currentCitizenPoints} More Pts`;
+  }
+
+  // Option 3: Free Govt Bus Service (1000 pts)
+  const pct3 = Math.min(100, Math.round((currentCitizenPoints / 1000) * 100));
+  const fill3 = document.getElementById('meterFillFreeBus');
+  const text3 = document.getElementById('meterTextFreeBus');
+  const btn3 = document.getElementById('btnRedeemFreeBus');
+  if (fill3) fill3.style.width = `${pct3}%`;
+  if (text3) text3.textContent = `${Math.min(currentCitizenPoints, 1000)} / 1000 pts (${pct3}%)`;
+  if (btn3) {
+    btn3.disabled = currentCitizenPoints < 1000;
+    btn3.innerHTML = currentCitizenPoints >= 1000 
+      ? '<i class="fa-solid fa-gift"></i> Redeem for 1000 Points' 
+      : `<i class="fa-solid fa-lock"></i> Need ${1000 - currentCitizenPoints} More Pts`;
+  }
+}
+
+function openRedeemPointsModal() {
+  if (!currentUser) return;
+  document.getElementById('redeemPointsModal').classList.remove('hidden');
+  switchRewardsTab('rewards');
+  loadCitizenPoints();
+}
+
+function switchRewardsTab(tab) {
+  document.querySelectorAll('.rewards-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.rewards-tab-content').forEach(s => s.classList.add('hidden'));
+
+  if (tab === 'rewards') {
+    document.getElementById('tabRewardsListBtn').classList.add('active');
+    document.getElementById('rewardsListSection').classList.remove('hidden');
+  } else if (tab === 'vouchers') {
+    document.getElementById('tabMyVouchersBtn').classList.add('active');
+    document.getElementById('rewardsVouchersSection').classList.remove('hidden');
+  } else {
+    document.getElementById('tabPointsHistoryBtn').classList.add('active');
+    document.getElementById('rewardsHistorySection').classList.remove('hidden');
+  }
+}
+
+async function redeemRewardPlan(rewardId) {
+  if (!currentUser) return;
+  const rewardNames = {
+    'govt_travel_30': '30% OFF on Government Travel (200 pts)',
+    'cashback_5': '₹5 Instant Cashback (100 pts)',
+    'free_bus_ride': 'Free 1-Time Government Bus Service (1000 pts)'
+  };
+  const name = rewardNames[rewardId] || 'Reward';
+  if (!confirm(`Are you sure you want to redeem "${name}" using your Greenox Points?`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/citizen/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        phone: currentUser.phone,
+        reward_id: rewardId
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(`🎉 ${data.message}`, 'success');
+      loadCitizenPoints();
+      switchRewardsTab('vouchers');
+      addNotification(`🎁 Reward Redeemed: ${data.voucher.reward_name} (Code: ${data.voucher.code})`, 'just now');
+    } else {
+      showToast(data.message || 'Redemption failed', 'error');
+    }
+  } catch (e) {
+    showToast('Network error during reward redemption', 'error');
+  }
+}
+
+function renderCitizenVouchers() {
+  const container = document.getElementById('myVouchersList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!citizenVouchers || citizenVouchers.length === 0) {
+    container.innerHTML = `
+      <div class="empty-vouchers-box">
+        <i class="fa-solid fa-ticket-simple text-gold fa-3x"></i>
+        <h4>No Active Vouchers Yet</h4>
+        <p>Redeem your earned Greenox Points above to unlock government transit discounts, cashback, and free ride vouchers.</p>
+        <button type="button" class="primary-btn mt-3" onclick="switchRewardsTab('rewards')">
+          <i class="fa-solid fa-gift"></i> Browse Available Rewards
+        </button>
+      </div>
+    `;
+    return;
+  }
+
+  citizenVouchers.forEach(v => {
+    const card = document.createElement('div');
+    card.className = 'voucher-card';
+    card.innerHTML = `
+      <div class="voucher-top-bar">
+        <span class="voucher-brand"><i class="fa-solid fa-shield-halved"></i> GREENOX OFFICIAL PASS</span>
+        <span class="voucher-status-pill"><i class="fa-solid fa-circle-check"></i> ${v.status || 'ACTIVE'}</span>
+      </div>
+      <div class="voucher-main-body">
+        <h4>${v.reward_name}</h4>
+        <p class="voucher-desc">${v.description || 'Verified government eco-transit reward coupon.'}</p>
+        
+        <div class="voucher-code-strip">
+          <span class="code-label">DIGITAL COUPON / PASS CODE:</span>
+          <div class="code-box">
+            <strong class="code-text" id="code_${v.id}">${v.code}</strong>
+            <button type="button" class="btn-copy-code" onclick="copyVoucherCode('${v.code}')" title="Copy Code">
+              <i class="fa-solid fa-copy"></i> Copy Code
+            </button>
+          </div>
+        </div>
+
+        <div class="voucher-footer-row">
+          <span><i class="fa-regular fa-calendar"></i> Redeemed: ${v.redeemed_at}</span>
+          <span class="text-gold"><i class="fa-solid fa-clock"></i> ${v.expires_at}</span>
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function copyVoucherCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    showToast(`Copied coupon code "${code}" to clipboard!`, 'success');
+  }).catch(() => {
+    showToast(`Coupon code: ${code}`, 'info');
+  });
+}
+
+function renderCitizenPointsHistory() {
+  const container = document.getElementById('pointsHistoryList');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!citizenPointsHistory || citizenPointsHistory.length === 0) {
+    container.innerHTML = `
+      <div class="empty-vouchers-box">
+        <i class="fa-solid fa-clock-rotate-left fa-3x text-green"></i>
+        <h4>No Points History Yet</h4>
+        <p>Report municipal waste in your neighborhood. When resolved by municipal teams, 35 to 70 Greenox Points will be credited automatically here!</p>
+      </div>
+    `;
+    return;
+  }
+
+  citizenPointsHistory.forEach(item => {
+    const isEarned = item.type === 'earned' || item.points > 0;
+    const row = document.createElement('div');
+    row.className = `pts-history-row ${isEarned ? 'earned' : 'redeemed'}`;
+    row.innerHTML = `
+      <div class="pts-icon-badge ${isEarned ? 'text-green' : 'text-gold'}">
+        <i class="fa-solid ${isEarned ? 'fa-plus-circle' : 'fa-minus-circle'}"></i>
+      </div>
+      <div class="pts-info">
+        <strong>${item.reason}</strong>
+        <span class="text-muted"><i class="fa-regular fa-clock"></i> ${item.date}</span>
+      </div>
+      <div class="pts-amount ${isEarned ? 'text-green' : 'text-gold'}">
+        <strong>${isEarned ? '+' + item.points : item.points} Greenox Pts</strong>
+      </div>
+    `;
+    container.appendChild(row);
+  });
 }
 
 function showToast(message, type = 'info') {

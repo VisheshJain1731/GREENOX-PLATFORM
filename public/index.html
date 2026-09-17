@@ -277,6 +277,12 @@
           <i class="fa-solid fa-moon" id="themeIconNav"></i>
         </button>
 
+        <!-- Greenox Points Rewards Button -->
+        <button type="button" class="points-nav-btn" onclick="openRedeemPointsModal()" title="View & Redeem Greenox Points">
+          <i class="fa-solid fa-coins text-gold"></i>
+          <span><strong id="navPointsBalance">0</strong> Greenox Points</span>
+        </button>
+
         <!-- Citizen History & Live Tracker Button -->
         <button type="button" class="history-nav-btn" onclick="openCitizenHistoryModal()" title="View Booking & Waste History">
           <i class="fa-solid fa-clock-rotate-left"></i>
@@ -392,17 +398,17 @@
             </div>
           </div>
           <div class="stat-pill">
-            <i class="fa-solid fa-shield-heart text-gold"></i>
+            <i class="fa-solid fa-coins text-gold"></i>
             <div>
-              <strong id="statEcoRating">5.0 / 5</strong>
-              <span>Eco Satisfaction</span>
+              <strong id="statGreenoxPoints">0 pts</strong>
+              <span>My Greenox Points</span>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 3 Core Citizen Action Cards -->
-      <section class="core-actions-grid">
+      <!-- 4 Core Citizen Action Cards -->
+      <section class="core-actions-grid grid-4-cards">
         
         <!-- CARD 1: REPORT WASTE -->
         <div class="action-card card-report" onclick="openReportWasteModal()">
@@ -448,6 +454,22 @@
             <div class="card-action-link">
               <span>Trigger Emergency SOS</span>
               <i class="fa-solid fa-bolt"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 4: GREENOX POINTS & REDEEM REWARDS -->
+        <div class="action-card card-rewards" onclick="openRedeemPointsModal()">
+          <div class="card-icon-bubble text-gold">
+            <i class="fa-solid fa-gift"></i>
+          </div>
+          <div class="card-body">
+            <span class="card-badge gold-badge">Earn 35 - 70 Pts / Solved Task</span>
+            <h3>4. Greenox Points & Redeem</h3>
+            <p>Get rewarded for keeping the city clean! Redeem points for 30% Govt travel discounts, ₹5 cashback, or free bus passes.</p>
+            <div class="card-action-link text-gold">
+              <span>Redeem Greenox Points</span>
+              <i class="fa-solid fa-coins"></i>
             </div>
           </div>
         </div>
@@ -948,6 +970,7 @@
                   <th>Aadhaar / Org ID</th>
                   <th>Sub-Role / Org Name</th>
                   <th>Registered At</th>
+                  <th>Actions / Management</th>
                 </tr>
               </thead>
               <tbody id="adminUsersTableBody"></tbody>
@@ -1538,32 +1561,187 @@
 
   <!-- Resolve Task Modal (For Govt Workers & Admin) -->
   <div id="resolveTaskModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'resolveTaskModal')">
-    <div class="modal-card modal-small-dim">
+    <div class="modal-card modal-medium-dim">
       <div class="modal-header">
         <div class="modal-title-wrap">
           <div class="modal-icon-badge text-green"><i class="fa-solid fa-circle-check"></i></div>
           <div>
             <h3>Mark Task Cleaned & Resolve</h3>
-            <span class="modal-sub">Publishes directly to live Solved Complaints showcase</span>
+            <span class="modal-sub">Upload after-cleaning proof from gallery/camera and publish to live showcase (awards Greenox Points to citizen)</span>
           </div>
         </div>
         <button type="button" class="modal-close-btn" onclick="closeModal('resolveTaskModal')"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <form id="resolveTaskForm" class="modal-body" onsubmit="submitTaskResolution(event)">
+      <form id="resolveTaskForm" class="modal-body form-sequence" onsubmit="submitTaskResolution(event)">
         <input type="hidden" id="resolveTaskId" />
-        <div class="input-group">
-          <label for="resolveAfterPhotoUrl">After Photo Evidence (URL or Clean Proof)</label>
-          <input type="url" id="resolveAfterPhotoUrl" placeholder="https://images.unsplash.com/..." required />
+        
+        <!-- After Cleaning Photo Proof (Gallery & Camera Upload - NO URL INPUT) -->
+        <div class="form-seq-group">
+          <label class="seq-label"><span class="step-num">1</span> After-Cleaning Photo Evidence (Upload Photo Proof)</label>
+          <div class="photo-upload-zone">
+            <div class="upload-options-row">
+              <label for="resolveTaskGalleryInput" class="upload-btn-chip">
+                <i class="fa-solid fa-images"></i> Upload from Gallery / Files
+              </label>
+              <label for="resolveTaskCameraInput" class="upload-btn-chip">
+                <i class="fa-solid fa-camera"></i> Take Camera Photo
+              </label>
+              <input type="file" id="resolveTaskGalleryInput" accept="image/*" class="hidden-file-input" onchange="handleTaskResolvePhotoUpload(event)" />
+              <input type="file" id="resolveTaskCameraInput" accept="image/*" capture="environment" class="hidden-file-input" onchange="handleTaskResolvePhotoUpload(event)" />
+            </div>
+
+            <!-- Preview box -->
+            <div class="photo-preview-wrap hidden" id="taskResolvePreviewWrap">
+              <img id="taskResolvePreview" src="" alt="Resolved Spot Proof" />
+              <button type="button" class="remove-photo-btn" onclick="removeTaskResolvePhoto()"><i class="fa-solid fa-trash"></i> Remove Photo</button>
+            </div>
+          </div>
         </div>
-        <div class="input-group">
-          <label for="resolveTimeConsumed">Time Consumed (Minutes)</label>
-          <input type="text" id="resolveTimeConsumed" placeholder="e.g. 25 mins" required />
+
+        <div class="form-seq-group">
+          <label for="resolveTimeConsumed" class="seq-label"><span class="step-num">2</span> Time Consumed for Cleaning</label>
+          <input type="text" id="resolveTimeConsumed" placeholder="e.g. 30 mins" required />
+          <span class="field-note">Awards 35 to 70 Greenox Points to the citizen reporter upon resolution.</span>
         </div>
+
         <div class="modal-footer">
           <button type="button" class="btn-secondary" onclick="closeModal('resolveTaskModal')">Cancel</button>
-          <button type="submit" class="primary-btn"><i class="fa-solid fa-check"></i> Publish to Solved Showcase</button>
+          <button type="submit" class="primary-btn" id="submitResolveBtn">
+            <i class="fa-solid fa-circle-check"></i> Mark Cleaned & Publish
+          </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       MODAL 9: GREENOX POINTS & REWARDS REDEMPTION CENTER
+  ==================================================== -->
+  <div id="redeemPointsModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'redeemPointsModal')">
+    <div class="modal-card modal-large-dim rewards-modal-card">
+      <div class="modal-header rewards-header-bg">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-gold pulse-gold"><i class="fa-solid fa-coins"></i></div>
+          <div>
+            <h3>Greenox Points Rewards & Redeem Center</h3>
+            <span class="modal-sub">Earn 35 to 70 Greenox Points whenever your reported complaint is resolved by employees!</span>
+          </div>
+        </div>
+        <div class="header-points-pill">
+          <i class="fa-solid fa-coins text-gold"></i>
+          <span>Balance: <strong id="modalPointsBalance">0</strong> pts</span>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('redeemPointsModal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Rewards Navigation Tabs -->
+        <div class="rewards-sub-tabs">
+          <button type="button" class="rewards-tab active" id="tabRewardsListBtn" onclick="switchRewardsTab('rewards')">
+            <i class="fa-solid fa-gift"></i>
+            <span>Available Rewards (3 Options)</span>
+          </button>
+          <button type="button" class="rewards-tab" id="tabMyVouchersBtn" onclick="switchRewardsTab('vouchers')">
+            <i class="fa-solid fa-ticket"></i>
+            <span>My Active Coupons & Passes (<span id="myVouchersCount">0</span>)</span>
+          </button>
+          <button type="button" class="rewards-tab" id="tabPointsHistoryBtn" onclick="switchRewardsTab('history')">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <span>Points Earning History</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: AVAILABLE REWARDS -->
+        <div id="rewardsListSection" class="rewards-tab-content active">
+          <div class="rewards-grid">
+            
+            <!-- OPTION 1: 30% OFF ON GOVT TRAVEL -->
+            <div class="reward-tier-card">
+              <div class="reward-card-header">
+                <span class="reward-code-tag"><i class="fa-solid fa-train-subway"></i> GOVT TRAVEL PASS</span>
+                <span class="reward-cost-badge"><i class="fa-solid fa-coins"></i> 200 Points</span>
+              </div>
+              <div class="reward-card-body">
+                <div class="reward-icon-circle text-blue"><i class="fa-solid fa-train"></i></div>
+                <h4>30% OFF on Government Travel Vehicles</h4>
+                <p class="reward-desc">30% discount on government travel vehicles such as Indian Railways, state transit buses, and municipal metro.</p>
+                
+                <div class="points-requirement-meter" id="meterGovtTravel">
+                  <div class="meter-text"><span>Progress to 200 pts</span><span id="meterTextGovtTravel">0 / 200</span></div>
+                  <div class="meter-bar-bg"><div class="meter-bar-fill" id="meterFillGovtTravel" style="width: 0%"></div></div>
+                </div>
+              </div>
+              <div class="reward-card-footer">
+                <button type="button" class="primary-btn btn-redeem" id="btnRedeemGovtTravel" onclick="redeemRewardPlan('govt_travel_30')">
+                  <i class="fa-solid fa-coins"></i> Redeem for 200 Points
+                </button>
+              </div>
+            </div>
+
+            <!-- OPTION 2: RS 5 CASHBACK -->
+            <div class="reward-tier-card">
+              <div class="reward-card-header">
+                <span class="reward-code-tag gold"><i class="fa-solid fa-money-bill-wave"></i> INSTANT CASHBACK</span>
+                <span class="reward-cost-badge gold"><i class="fa-solid fa-coins"></i> 100 Points</span>
+              </div>
+              <div class="reward-card-body">
+                <div class="reward-icon-circle text-gold"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                <h4>₹5 Cashback Reward</h4>
+                <p class="reward-desc">Claim Rs 5 instant cashback credit reward for your proactive citizen waste reporting and eco-cleanliness support.</p>
+                
+                <div class="points-requirement-meter" id="meterCashback">
+                  <div class="meter-text"><span>Progress to 100 pts</span><span id="meterTextCashback">0 / 100</span></div>
+                  <div class="meter-bar-bg"><div class="meter-bar-fill fill-gold" id="meterFillCashback" style="width: 0%"></div></div>
+                </div>
+              </div>
+              <div class="reward-card-footer">
+                <button type="button" class="primary-btn btn-redeem gold-btn" id="btnRedeemCashback" onclick="redeemRewardPlan('cashback_5')">
+                  <i class="fa-solid fa-coins"></i> Redeem for 100 Points
+                </button>
+              </div>
+            </div>
+
+            <!-- OPTION 3: FREE GOVT BUS SERVICE ONCE -->
+            <div class="reward-tier-card premier-tier">
+              <div class="reward-card-header">
+                <span class="reward-code-tag emerald"><i class="fa-solid fa-bus-simple"></i> PREMIER PASS</span>
+                <span class="reward-cost-badge emerald"><i class="fa-solid fa-coins"></i> 1000 Points</span>
+              </div>
+              <div class="reward-card-body">
+                <div class="reward-icon-circle text-emerald"><i class="fa-solid fa-bus"></i></div>
+                <h4>Free 1-Time Government Bus Service</h4>
+                <p class="reward-desc">Enjoy a 100% free single government bus ride anywhere across city and state municipal bus routes.</p>
+                
+                <div class="points-requirement-meter" id="meterFreeBus">
+                  <div class="meter-text"><span>Progress to 1000 pts</span><span id="meterTextFreeBus">0 / 1000</span></div>
+                  <div class="meter-bar-bg"><div class="meter-bar-fill fill-emerald" id="meterFillFreeBus" style="width: 0%"></div></div>
+                </div>
+              </div>
+              <div class="reward-card-footer">
+                <button type="button" class="primary-btn btn-redeem emerald-btn" id="btnRedeemFreeBus" onclick="redeemRewardPlan('free_bus_ride')">
+                  <i class="fa-solid fa-coins"></i> Redeem for 1000 Points
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB 2: MY ACTIVE VOUCHERS / PASSES -->
+        <div id="rewardsVouchersSection" class="rewards-tab-content hidden">
+          <div class="vouchers-list-grid" id="myVouchersList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- TAB 3: POINTS EARNED HISTORY -->
+        <div id="rewardsHistorySection" class="rewards-tab-content hidden">
+          <div class="points-history-list" id="pointsHistoryList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+      </div>
     </div>
   </div>
 
