@@ -1,16 +1,1 @@
-[
-  {
-    "id": "CASE-0733",
-    "headline": "Sector 21 Garbage Pile",
-    "address": "Sector 21 Garbage Pile",
-    "waste_type": "Plastic & Dry Waste",
-    "before_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-    "after_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
-    "time_consumed": "25 mins",
-    "duration_minutes": 25,
-    "team": "Government Municipal Squad",
-    "solved_at": "Just now",
-    "rating": 5.0,
-    "status": "Resolved & Verified"
-  }
-]
+[]

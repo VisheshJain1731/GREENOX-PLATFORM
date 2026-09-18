@@ -25,6 +25,8 @@ let emgMap = null, emgMarker = null;
 let currentEmergencyType = 'same_location';
 let employeePollingInterval = null;
 let lastKnownEmergencyId = null;
+let isTreeAddonSelected = false;
+let lastSeenNotifIds = new Set();
 
 let currentBookingPkg = {
   name: 'Home Deep Cleaning',
@@ -43,7 +45,8 @@ const CLEANING_PACKAGES = {
   'Post Construction': { price: 2999, baseFee: 2100, workerFee: 500, ecoFee: 250, platformFee: 149 },
   'Event and Banquet': { price: 4999, baseFee: 3500, workerFee: 850, ecoFee: 450, platformFee: 199 },
   'Hospital Sanitization': { price: 3999, baseFee: 2800, workerFee: 700, ecoFee: 350, platformFee: 149 },
-  'Custom Cleaning': { price: 5499, baseFee: 3900, workerFee: 950, ecoFee: 450, platformFee: 199 }
+  'Custom Cleaning': { price: 5499, baseFee: 3900, workerFee: 950, ecoFee: 450, platformFee: 199 },
+  'Plant a Tree (Eco Initiative)': { price: 599, baseFee: 420, workerFee: 100, ecoFee: 50, platformFee: 29 }
 };
 
 // Default Geolocation Coordinates (Green City Center)
@@ -526,6 +529,7 @@ function transitionToDashboard(user) {
   
   loadSolvedShowcaseFeed();
   loadCitizenPoints();
+  fetchUserNotifications();
   startSessionStatusPolling();
 }
 
@@ -539,8 +543,11 @@ function startSessionStatusPolling() {
       if (!data.valid) {
         clearInterval(sessionCheckInterval);
         handleLogout(data.message || 'Session invalidated by Administrator.');
-      } else if (currentUser.role === 'citizen' && data.greenox_points !== undefined && data.greenox_points !== currentCitizenPoints) {
-        loadCitizenPoints();
+      } else if (currentUser.role === 'citizen') {
+        if (data.greenox_points !== undefined && data.greenox_points !== currentCitizenPoints) {
+          loadCitizenPoints();
+        }
+        fetchUserNotifications();
       }
     } catch (e) {}
   }, 8000);
@@ -985,14 +992,20 @@ function renderCitizenBookings(bookings) {
     return;
   }
   bookings.forEach(b => {
+    const isTree = b.tree_planting_included || b.has_tree_planting || b.service_name.includes('Plant a Tree');
+    const treeBadge = isTree ? `<br><span class="badge-pill badge-tree"><i class="fa-solid fa-seedling"></i> Tree Planting Included</span>` : '';
+    let statusClass = 'status-confirmed';
+    if (b.status === 'Closed (Heavy Load)') statusClass = 'status-closed';
+    if (b.status === 'Completed') statusClass = 'status-resolved';
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${b.id}</strong></td>
-      <td><strong>${b.service_name}</strong></td>
+      <td><strong>${b.service_name}</strong>${treeBadge}</td>
       <td>${b.timing_slot}</td>
       <td>${b.address}</td>
       <td><strong class="text-green">₹${b.service_price}</strong></td>
-      <td><span class="status-tag status-confirmed">${b.status}</span></td>
+      <td><span class="status-tag ${statusClass}">${b.status}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -1006,6 +1019,10 @@ function renderCitizenReports(tasks) {
     return;
   }
   tasks.forEach(t => {
+    let statusClass = 'status-pending';
+    if (t.status === 'Resolved') statusClass = 'status-resolved';
+    if (t.status === 'Closed (Heavy Load)') statusClass = 'status-closed';
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${t.id}</strong></td>
@@ -1013,7 +1030,7 @@ function renderCitizenReports(tasks) {
       <td><span class="badge-pill">${t.waste_type}</span></td>
       <td><img src="${t.photo}" alt="Proof" class="table-photo-thumb" /></td>
       <td>${t.created_at || 'Recently'}</td>
-      <td><span class="status-tag ${t.status === 'Resolved' ? 'status-resolved' : 'status-pending'}">${t.status}</span></td>
+      <td><span class="status-tag ${statusClass}">${t.status}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -1057,7 +1074,7 @@ function renderCitizenEmergencies(emergencies) {
 }
 
 // ==========================================================================
-// 12. ADMIN PORTAL DATA (WITH NEW INCIDENT REPORTS TAB)
+// 12. ADMIN PORTAL DATA (WITH SOLVED COMPLAINTS & CLOSURE OPTIONS)
 // ==========================================================================
 
 function switchAdminTab(tabName) {
@@ -1067,6 +1084,7 @@ function switchAdminTab(tabName) {
   event.currentTarget.classList.add('active');
 
   if (tabName === 'tasks') document.getElementById('adminTasksSection').classList.remove('hidden');
+  if (tabName === 'solved') document.getElementById('adminSolvedSection').classList.remove('hidden');
   if (tabName === 'bookings') document.getElementById('adminBookingsSection').classList.remove('hidden');
   if (tabName === 'emergencies') document.getElementById('adminEmgSection').classList.remove('hidden');
   if (tabName === 'reports') document.getElementById('adminReportsSection').classList.remove('hidden');
@@ -1079,18 +1097,26 @@ async function loadAdminData() {
     const data = await res.json();
 
     if (data.success) {
+      const solvedList = data.solved_tasks || (data.tasks || []).filter(t => t.status === 'Resolved');
+      const pendingTasksCount = (data.tasks || []).filter(t => t.status === 'Pending').length;
+
       document.getElementById('adminStatTasks').textContent = data.tasks.length;
+      const statSolved = document.getElementById('adminStatSolved');
+      if (statSolved) statSolved.textContent = solvedList.length;
       document.getElementById('adminStatBookings').textContent = data.bookings.length;
       document.getElementById('adminStatEmergencies').textContent = data.emergencies.length;
       document.getElementById('adminStatFalseReports').textContent = (data.reports || []).length;
 
       document.getElementById('adminTasksBadge').textContent = data.tasks.length;
+      const solvedBadge = document.getElementById('adminSolvedBadge');
+      if (solvedBadge) solvedBadge.textContent = solvedList.length;
       document.getElementById('adminBookingsBadge').textContent = data.bookings.length;
       document.getElementById('adminEmgBadge').textContent = data.emergencies.length;
       document.getElementById('adminReportsBadge').textContent = (data.reports || []).length;
       document.getElementById('adminUsersBadge').textContent = data.users.length;
 
       renderAdminTasks(data.tasks);
+      renderAdminSolvedHistory(solvedList);
       renderAdminBookings(data.bookings);
       renderAdminEmergencies(data.emergencies);
       renderAdminReports(data.reports || []);
@@ -1109,20 +1135,100 @@ function renderAdminTasks(tasks) {
     return;
   }
   tasks.forEach(t => {
+    let statusClass = 'status-pending';
+    if (t.status === 'Resolved') statusClass = 'status-resolved';
+    if (t.status === 'Closed (Heavy Load)') statusClass = 'status-closed';
+
+    let actionHtml = '';
+    if (t.status === 'Pending') {
+      actionHtml = `
+        <div class="admin-task-actions-row">
+          <button type="button" class="tbl-btn tbl-btn-resolve" onclick="openResolveTaskModal('${t.id}')">
+            <i class="fa-solid fa-check"></i> Resolve
+          </button>
+          <button type="button" class="tbl-btn tbl-btn-close-service" onclick="adminCloseTask('${t.id}')" title="Close complaint due to heavy load">
+            <i class="fa-solid fa-ban"></i> Close (Heavy Load)
+          </button>
+        </div>
+      `;
+    } else if (t.status === 'Resolved') {
+      actionHtml = `<span class="text-green font-bold"><i class="fa-solid fa-circle-check"></i> Resolved</span>`;
+    } else if (t.status === 'Closed (Heavy Load)') {
+      actionHtml = `<span class="text-muted"><i class="fa-solid fa-lock"></i> Closed (Heavy Load)</span>`;
+    } else {
+      actionHtml = `<span class="text-muted">${t.status}</span>`;
+    }
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${t.id}</strong></td>
       <td><strong>${t.headline}</strong><br><small class="text-muted">${t.address}</small></td>
-      <td>${t.waste_type}</td>
+      <td><span class="badge-pill">${t.waste_type}</span></td>
       <td><img src="${t.photo}" alt="Proof" class="table-photo-thumb" /></td>
-      <td>${t.reporter_name}<br><small>${t.reporter_phone}</small></td>
-      <td><span class="status-tag ${t.status === 'Resolved' ? 'status-resolved' : 'status-pending'}">${t.status}</span></td>
+      <td><strong>${t.reporter_name}</strong><br><small><i class="fa-solid fa-phone"></i> ${t.reporter_phone}</small><br><small><i class="fa-solid fa-envelope"></i> ${t.reporter_email || '-'}</small></td>
+      <td><span class="status-tag ${statusClass}">${t.status}</span></td>
+      <td>${actionHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderAdminSolvedHistory(solvedTasks) {
+  const tbody = document.getElementById('adminSolvedTasksTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!solvedTasks || solvedTasks.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4"><i class="fa-solid fa-circle-check text-green"></i> No solved complaint records in archive yet.</td></tr>`;
+    return;
+  }
+
+  solvedTasks.forEach(t => {
+    const afterPhotoSrc = t.resolved_after_photo || t.after_photo || 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=400&q=80';
+    const durationStr = t.resolved_time_consumed || t.time_consumed || '30 mins';
+    const solvedTime = t.resolved_at || t.points_awarded_at || t.created_at || 'Recently';
+    const pts = t.awarded_points ? `+${t.awarded_points} pts` : '+50 pts';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
       <td>
-        ${t.status !== 'Resolved' ? `
-          <button class="tbl-btn tbl-btn-resolve" onclick="openResolveTaskModal('${t.id}')">
-            <i class="fa-solid fa-check"></i> Resolve & Publish
-          </button>
-        ` : '<span class="text-green"><i class="fa-solid fa-check-double"></i> Published</span>'}
+        <strong>${t.id}</strong><br>
+        <small class="text-muted"><i class="fa-regular fa-clock"></i> ${solvedTime}</small>
+      </td>
+      <td>
+        <strong>${t.headline}</strong><br>
+        <small class="text-muted">${t.address}</small><br>
+        <small class="text-green"><i class="fa-solid fa-location-crosshairs"></i> Lat: ${parseFloat(t.lat || DEFAULT_LAT).toFixed(4)}, Lng: ${parseFloat(t.lng || DEFAULT_LNG).toFixed(4)}</small>
+      </td>
+      <td>
+        <strong class="text-main">${t.reporter_name || 'Citizen Reporter'}</strong>
+      </td>
+      <td>
+        <div><i class="fa-solid fa-envelope text-blue"></i> ${t.reporter_email || 'N/A'}</div>
+        <div><i class="fa-solid fa-phone text-green"></i> ${t.reporter_phone || 'N/A'}</div>
+      </td>
+      <td><span class="badge-pill">${t.waste_type}</span></td>
+      <td>
+        <div class="solved-photos-pair">
+          <div class="photo-thumb-wrap" title="Before Cleaning">
+            <span class="photo-badge before">Before</span>
+            <img src="${t.photo}" alt="Before" class="table-photo-thumb" />
+          </div>
+          <div class="photo-thumb-wrap" title="After Cleaning">
+            <span class="photo-badge after">After</span>
+            <img src="${afterPhotoSrc}" alt="After" class="table-photo-thumb" />
+          </div>
+        </div>
+      </td>
+      <td>
+        <strong>${durationStr}</strong><br>
+        <small class="text-muted">${t.assigned_team || 'Municipal Squad'}</small>
+      </td>
+      <td><strong class="text-green">${pts}</strong></td>
+      <td>
+        <button type="button" class="tbl-btn tbl-btn-delete" onclick="adminDeleteSolvedTask('${t.id}')" title="Delete record from solved archive">
+          <i class="fa-solid fa-trash-can"></i> Delete
+        </button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -1133,22 +1239,149 @@ function renderAdminBookings(bookings) {
   const tbody = document.getElementById('adminBookingsTableBody');
   tbody.innerHTML = '';
   if (!bookings || bookings.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">No private cleaning bookings yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">No private cleaning bookings yet.</td></tr>`;
     return;
   }
   bookings.forEach(b => {
+    const isTree = b.tree_planting_included || b.has_tree_planting || b.service_name.includes('Plant a Tree');
+    const treeBadge = isTree ? `<br><span class="badge-pill badge-tree"><i class="fa-solid fa-seedling"></i> +Tree Planting (${b.service_name.includes('Plant a Tree') ? '₹599' : '50% OFF'})</span>` : '';
+
+    let statusClass = 'status-confirmed';
+    if (b.status === 'Closed (Heavy Load)') statusClass = 'status-closed';
+    if (b.status === 'Completed') statusClass = 'status-resolved';
+
+    let actionHtml = '';
+    if (b.status === 'Pending' || b.status === 'Confirmed') {
+      actionHtml = `
+        <div class="admin-task-actions-row">
+          <button type="button" class="table-action-btn btn-resolve-spot" onclick="completePrivateBooking('${b.id}')">
+            <i class="fa-solid fa-circle-check"></i> Complete
+          </button>
+          <button type="button" class="tbl-btn tbl-btn-close-service" onclick="adminCloseBooking('${b.id}')" title="Close booking due to heavy load">
+            <i class="fa-solid fa-ban"></i> Close (Heavy Load)
+          </button>
+        </div>
+      `;
+    } else if (b.status === 'Completed') {
+      actionHtml = `<span class="text-green font-bold"><i class="fa-solid fa-check-double"></i> Completed</span>`;
+    } else if (b.status === 'Closed (Heavy Load)') {
+      actionHtml = `<span class="text-muted"><i class="fa-solid fa-lock"></i> Closed (Heavy Load)</span>`;
+    } else {
+      actionHtml = `<span class="text-muted">${b.status}</span>`;
+    }
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${b.id}</strong></td>
-      <td><strong>${b.customer_name}</strong><br><small>${b.customer_phone}</small></td>
-      <td><span class="badge-pill">${b.service_name}</span></td>
+      <td><strong>${b.customer_name}</strong><br><small><i class="fa-solid fa-phone"></i> ${b.customer_phone}</small><br><small><i class="fa-solid fa-envelope"></i> ${b.customer_email || '-'}</small></td>
+      <td><span class="badge-pill">${b.service_name}</span>${treeBadge}</td>
       <td>${b.timing_slot}</td>
       <td>${b.address}</td>
       <td><strong class="text-green">₹${b.service_price}</strong></td>
-      <td><span class="status-tag status-confirmed">${b.status}</span></td>
+      <td><span class="status-tag ${statusClass}">${b.status}</span></td>
+      <td>${actionHtml}</td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+async function adminCloseTask(taskId) {
+  if (!confirm(`Are you sure you want to CLOSE complaint #${taskId} due to heavy load?\n\nA notification will be sent to the citizen: "The service / complaint you raised has been temporarily closed due to heavy load. Please try again later."`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/close-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: taskId,
+        reason: 'The service / complaint you raised has been temporarily closed due to heavy load. Please try again later.'
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Complaint #${taskId} closed due to heavy load and notification sent!`, 'success');
+      loadAdminData();
+    } else {
+      showToast(data.message || 'Failed to close complaint', 'error');
+    }
+  } catch (e) {
+    showToast('Network error closing complaint', 'error');
+  }
+}
+
+async function adminCloseBooking(bookingId) {
+  if (!confirm(`Are you sure you want to CLOSE private booking #${bookingId} due to heavy load?\n\nA notification will be sent to the citizen: "The service / private booking you raised has been temporarily closed due to heavy load. Please try again later."`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/close-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        booking_id: bookingId,
+        reason: 'The service / private booking you raised has been temporarily closed due to heavy load. Please try again later.'
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Booking #${bookingId} closed due to heavy load and notification sent!`, 'success');
+      loadAdminData();
+    } else {
+      showToast(data.message || 'Failed to close booking', 'error');
+    }
+  } catch (e) {
+    showToast('Network error closing booking', 'error');
+  }
+}
+
+async function adminClearSolvedHistory() {
+  if (!confirm('⚠️ DANGER: Are you sure you want to CLEAR ALL solved complaints history records?\n\nThis will remove all resolved complaints from the archive and showcase.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/clear-solved-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Cleared ${data.cleared_count} solved complaints history records!`, 'success');
+      loadAdminData();
+      loadSolvedShowcaseFeed();
+    } else {
+      showToast(data.message || 'Failed to clear solved history', 'error');
+    }
+  } catch (e) {
+    showToast('Network error clearing solved history', 'error');
+  }
+}
+
+async function adminDeleteSolvedTask(taskId) {
+  if (!confirm(`Are you sure you want to delete solved complaint record #${taskId}?`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/delete-solved-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_id: taskId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Solved complaint #${taskId} deleted.`, 'success');
+      loadAdminData();
+      loadSolvedShowcaseFeed();
+    } else {
+      showToast(data.message || 'Failed to delete record', 'error');
+    }
+  } catch (e) {
+    showToast('Network error deleting record', 'error');
+  }
 }
 
 function renderAdminEmergencies(emergencies) {
@@ -1314,12 +1547,23 @@ function toggleProfileMenu() {
 
 function closeProfileMenu() {
   document.getElementById('profilePopover').classList.add('hidden');
-}
-
 function toggleNotifications() {
   const notif = document.getElementById('notifDropdown');
   notif.classList.toggle('hidden');
   document.getElementById('profilePopover').classList.add('hidden');
+  
+  if (!notif.classList.contains('hidden') && currentUser) {
+    // Mark notifications as read
+    fetch('/api/user/notifications/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentUser.email, phone: currentUser.phone })
+    }).then(() => {
+      const badge = document.getElementById('notifBadgeCount');
+      if (badge) badge.textContent = '0';
+      document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+    }).catch(() => {});
+  }
 }
 
 function enableAddressEditing() {
@@ -1567,26 +1811,68 @@ function selectCleaningPackage(element) {
   if (pkgData) {
     currentBookingPkg = { name: pkgName, ...pkgData };
     document.getElementById('receiptServiceName').textContent = pkgName;
+
+    const addonCard = document.getElementById('treeAddonCard');
+    if (pkgName === 'Plant a Tree (Eco Initiative)') {
+      if (addonCard) addonCard.classList.add('hidden');
+      toggleTreePlantingAddon(false);
+    } else {
+      if (addonCard) addonCard.classList.remove('hidden');
+    }
+
     recalculateReceipt();
   }
+}
+
+function toggleTreePlantingAddon(isYes) {
+  isTreeAddonSelected = isYes;
+  const radioYes = document.getElementById('treeRadioYes');
+  const radioNo = document.getElementById('treeRadioNo');
+  
+  if (isYes) {
+    if (radioYes) radioYes.classList.add('active');
+    if (radioNo) radioNo.classList.remove('active');
+    const inputYes = radioYes?.querySelector('input');
+    if (inputYes) inputYes.checked = true;
+  } else {
+    if (radioNo) radioNo.classList.add('active');
+    if (radioYes) radioYes.classList.remove('active');
+    const inputNo = radioNo?.querySelector('input');
+    if (inputNo) inputNo.checked = true;
+  }
+
+  recalculateReceipt();
 }
 
 function recalculateReceipt() {
   const isGst = document.getElementById('gstCheckbox').checked;
   const pkg = currentBookingPkg;
+  const isTreeService = pkg.name === 'Plant a Tree (Eco Initiative)';
+  const addTree = isTreeAddonSelected && !isTreeService;
+  const treePrice = addTree ? 299 : 0;
+  const totalAmount = pkg.price + treePrice;
 
   document.getElementById('rcptServiceFee').textContent = `₹${pkg.baseFee}`;
   document.getElementById('rcptWorkerFee').textContent = `₹${pkg.workerFee}`;
   document.getElementById('rcptEcoFee').textContent = `₹${pkg.ecoFee}`;
   document.getElementById('rcptPlatformFee').textContent = `₹${pkg.platformFee}`;
 
+  const treeRow = document.getElementById('rcptTreeAddonRow');
+  if (treeRow) {
+    if (addTree) {
+      treeRow.classList.remove('hidden');
+    } else {
+      treeRow.classList.add('hidden');
+    }
+  }
+
   if (isGst) {
-    document.getElementById('rcptGstAmount').textContent = '18% Included (₹' + Math.round(pkg.price * 0.18) + ')';
+    document.getElementById('rcptGstAmount').textContent = '18% Included (₹' + Math.round(totalAmount * 0.18) + ')';
   } else {
     document.getElementById('rcptGstAmount').textContent = 'Exempted';
   }
 
-  document.getElementById('rcptFinalTotal').textContent = `₹${pkg.price}`;
+  document.getElementById('rcptFinalTotal').textContent = `₹${totalAmount}`;
 }
 
 async function confirmCleaningBooking() {
@@ -1598,6 +1884,11 @@ async function confirmCleaningBooking() {
     return;
   }
 
+  const isTreeService = currentBookingPkg.name === 'Plant a Tree (Eco Initiative)';
+  const addTree = isTreeAddonSelected && !isTreeService;
+  const treePrice = addTree ? 299 : 0;
+  const finalPrice = currentBookingPkg.price + treePrice;
+
   const customerName = currentUser ? (currentUser.org_name || `${currentUser.first_name} ${currentUser.surname}`) : 'Customer';
   const customerPhone = currentUser ? currentUser.phone : '';
   const customerEmail = currentUser ? currentUser.email : '';
@@ -1608,9 +1899,11 @@ async function confirmCleaningBooking() {
     worker_fee: currentBookingPkg.workerFee,
     consumables_fee: currentBookingPkg.ecoFee,
     platform_fee: currentBookingPkg.platformFee,
+    tree_planting_addon: addTree,
+    tree_addon_price: treePrice,
     gst_applied: isGst,
-    gst_amount: isGst ? Math.round(currentBookingPkg.price * 0.18) : 0,
-    total_amount: currentBookingPkg.price
+    gst_amount: isGst ? Math.round(finalPrice * 0.18) : 0,
+    total_amount: finalPrice
   };
 
   try {
@@ -1619,7 +1912,7 @@ async function confirmCleaningBooking() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         service_name: currentBookingPkg.name,
-        service_price: currentBookingPkg.price,
+        service_price: finalPrice,
         receipt: receiptData,
         timing_slot: timing,
         address: address,
@@ -1627,15 +1920,19 @@ async function confirmCleaningBooking() {
         customer_phone: customerPhone,
         customer_email: customerEmail,
         user_type: currentUser ? currentUser.role : 'citizen',
-        org_name: currentUser ? (currentUser.org_name || '') : ''
+        org_name: currentUser ? (currentUser.org_name || '') : '',
+        tree_planting_included: addTree || isTreeService,
+        tree_addon_price: treePrice,
+        has_tree_planting: addTree || isTreeService
       })
     });
 
     const result = await res.json();
     if (result.success) {
-      showToast(`Booking Confirmed (#${result.booking.id})! Dispatched to Private Cleaning Team.`, 'success');
+      const treeNote = (addTree || isTreeService) ? ' (+🌱 Tree Planting Included)' : '';
+      showToast(`Booking Confirmed (#${result.booking.id})!${treeNote} Dispatched to Private Cleaning Team.`, 'success');
       closeModal('bookCleaningModal');
-      addNotification(`Booking Confirmed: ${currentBookingPkg.name} at ${address}`, 'just now');
+      addNotification(`Booking Confirmed: ${currentBookingPkg.name}${treeNote} at ${address}`, 'just now');
     } else {
       showToast('Booking failed', 'error');
     }
@@ -2132,6 +2429,66 @@ function showToast(message, type = 'info') {
     toast.style.animation = 'fadeOut 0.3s forwards';
     setTimeout(() => toast.remove(), 300);
   }, 4000);
+}
+
+async function fetchUserNotifications() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(`/api/user/notifications?email=${encodeURIComponent(currentUser.email)}&phone=${encodeURIComponent(currentUser.phone)}`);
+    const data = await res.json();
+    if (data.success && data.notifications) {
+      renderNotificationsList(data.notifications);
+
+      // Alert citizen with toast if new unread heavy load closure notification arrived
+      data.notifications.forEach(n => {
+        if (n.unread && !lastSeenNotifIds.has(n.id)) {
+          lastSeenNotifIds.add(n.id);
+          if (n.type === 'heavy_load_closure') {
+            showToast(`⚠️ ${n.message}`, 'error');
+          }
+        }
+      });
+    }
+  } catch (e) {}
+}
+
+function renderNotificationsList(notifs) {
+  const list = document.getElementById('notifList');
+  if (!list) return;
+
+  if (!notifs || notifs.length === 0) {
+    list.innerHTML = `
+      <div class="notif-empty-state">
+        <i class="fa-solid fa-bell-slash"></i>
+        <p>No new notifications right now.</p>
+      </div>
+    `;
+    const badge = document.getElementById('notifBadgeCount');
+    if (badge) badge.textContent = '0';
+    return;
+  }
+
+  list.innerHTML = '';
+  let unreadCount = 0;
+
+  notifs.forEach(n => {
+    if (n.unread) unreadCount++;
+    const isClosure = n.type === 'heavy_load_closure';
+    const item = document.createElement('div');
+    item.className = `notif-item ${n.unread ? 'unread' : ''} ${isClosure ? 'notif-closure' : ''}`;
+    item.innerHTML = `
+      <i class="fa-solid ${isClosure ? 'fa-triangle-exclamation text-red' : 'fa-bell text-green'}"></i>
+      <div class="notif-info">
+        <p class="notif-title"><strong>${n.title || 'Notice'}</strong></p>
+        <p class="notif-msg">${n.message}</p>
+        <span class="notif-time"><i class="fa-regular fa-clock"></i> ${n.timestamp || 'Recently'}</span>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+
+  const badge = document.getElementById('notifBadgeCount');
+  if (badge) badge.textContent = unreadCount;
 }
 
 function addNotification(title, time) {

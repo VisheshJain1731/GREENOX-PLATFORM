@@ -25,6 +25,7 @@ BOOKINGS_JSON = os.path.join(DATA_DIR, 'bookings.json')
 EMERGENCIES_JSON = os.path.join(DATA_DIR, 'emergencies.json')
 SHOWCASE_JSON = os.path.join(DATA_DIR, 'showcase.json')
 REPORTS_JSON = os.path.join(DATA_DIR, 'reports.json')
+NOTIFICATIONS_JSON = os.path.join(DATA_DIR, 'notifications.json')
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, 'public', 'uploads'), exist_ok=True)
@@ -114,6 +115,8 @@ def ensure_clean_storage():
         save_json(SHOWCASE_JSON, [])
     if not os.path.exists(REPORTS_JSON):
         save_json(REPORTS_JSON, [])
+    if not os.path.exists(NOTIFICATIONS_JSON):
+        save_json(NOTIFICATIONS_JSON, [])
 
 ensure_clean_storage()
 
@@ -380,6 +383,9 @@ def create_booking():
     customer_email = data.get('customer_email', '')
     user_type = data.get('user_type', 'citizen')
     org_name = data.get('org_name', '')
+    tree_planting_included = bool(data.get('tree_planting_included', False))
+    tree_addon_price = data.get('tree_addon_price', 299 if tree_planting_included else 0)
+    has_tree_planting = bool(data.get('has_tree_planting', False) or tree_planting_included or ('Plant a Tree' in service_name))
 
     bookings = load_json(BOOKINGS_JSON, [])
     booking_id = f"PB-{int(time.time() % 10000):04d}"
@@ -396,6 +402,9 @@ def create_booking():
         "customer_email": customer_email,
         "user_type": user_type,
         "org_name": org_name,
+        "tree_planting_included": tree_planting_included,
+        "tree_addon_price": tree_addon_price,
+        "has_tree_planting": has_tree_planting,
         "status": "Pending",
         "assigned_team": "Private Eco-Clean Team",
         "created_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -603,20 +612,25 @@ def get_admin_data():
     showcase = load_json(SHOWCASE_JSON, [])
     users = load_json(USERS_JSON, [])
     reports = load_json(REPORTS_JSON, [])
+    notifications = load_json(NOTIFICATIONS_JSON, [])
     
     users_clean = [{k: v for k, v in u.items() if k != 'password'} for u in users]
+    solved_tasks = [t for t in tasks if t.get('status') == 'Resolved']
 
     return jsonify({
         "success": True,
         "tasks": tasks,
+        "solved_tasks": solved_tasks,
         "bookings": bookings,
         "emergencies": emergencies,
         "showcase": showcase,
         "users": users_clean,
         "reports": reports,
+        "notifications": notifications,
         "stats": {
             "total_tasks": len(tasks),
             "pending_tasks": len([t for t in tasks if t.get('status') == 'Pending']),
+            "solved_tasks": len(solved_tasks),
             "private_bookings": len(bookings),
             "emergency_calls": len(emergencies),
             "solved_cases": len(showcase),
@@ -644,10 +658,12 @@ def update_task_status():
     if not target_task:
         return jsonify({"success": False, "message": "Task not found"}), 404
 
-    save_json(TASKS_JSON, tasks)
-
-    # If resolved, add to public showcase feed and award Greenox points to the citizen reporter
+    # If resolved, record resolved details, add to public showcase feed, and award Greenox points
     if new_status == 'Resolved':
+        target_task['resolved_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        target_task['resolved_after_photo'] = after_photo
+        target_task['resolved_time_consumed'] = time_consumed
+
         # Award 35 to 70 Greenox Points to citizen reporter
         awarded_pts = target_task.get('awarded_points')
         if not awarded_pts:
@@ -695,8 +711,194 @@ def update_task_status():
         }
         showcase.insert(0, new_showcase_item)
         save_json(SHOWCASE_JSON, showcase)
+    else:
+        save_json(TASKS_JSON, tasks)
 
     return jsonify({"success": True, "message": f"Task {task_id} marked as {new_status}!", "task": target_task})
+
+@app.route('/api/admin/close-task', methods=['POST'])
+def admin_close_task():
+    data = request.get_json() or {}
+    task_id = data.get('task_id')
+    reason = data.get('reason', 'The service / complaint you raised has been temporarily closed due to heavy load. Please try again later.')
+
+    tasks = load_json(TASKS_JSON, [])
+    target_task = None
+    for t in tasks:
+        if t.get('id') == task_id:
+            t['status'] = 'Closed (Heavy Load)'
+            t['closed_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            t['close_reason'] = reason
+            target_task = t
+            break
+
+    if not target_task:
+        return jsonify({"success": False, "message": "Complaint task not found."}), 404
+
+    save_json(TASKS_JSON, tasks)
+
+    # Push persistent notification for citizen reporter
+    rep_email = target_task.get('reporter_email', '').strip().lower()
+    rep_phone = target_task.get('reporter_phone', '').strip()
+    
+    notifications = load_json(NOTIFICATIONS_JSON, [])
+    notif_id = f"NOTIF-{int(time.time() % 100000):05d}"
+    headline_info = target_task.get('headline') or target_task.get('address') or task_id
+    new_notif = {
+        "id": notif_id,
+        "type": "heavy_load_closure",
+        "title": f"Complaint #{task_id} Temporarily Closed (Heavy Load)",
+        "message": f"The service / complaint you raised for '{headline_info}' has been temporarily closed due to heavy load. Please try again later.",
+        "recipient_email": rep_email,
+        "recipient_phone": rep_phone,
+        "ref_id": task_id,
+        "ref_type": "complaint",
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "unread": True
+    }
+    notifications.insert(0, new_notif)
+    save_json(NOTIFICATIONS_JSON, notifications)
+
+    return jsonify({
+        "success": True,
+        "message": f"Complaint {task_id} closed due to heavy load and notification delivered to citizen.",
+        "task": target_task,
+        "notification": new_notif
+    })
+
+@app.route('/api/admin/close-booking', methods=['POST'])
+def admin_close_booking():
+    data = request.get_json() or {}
+    booking_id = data.get('booking_id')
+    reason = data.get('reason', 'The service / private booking you raised has been temporarily closed due to heavy load. Please try again later.')
+
+    bookings = load_json(BOOKINGS_JSON, [])
+    target_booking = None
+    for b in bookings:
+        if b.get('id') == booking_id:
+            b['status'] = 'Closed (Heavy Load)'
+            b['closed_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            b['close_reason'] = reason
+            target_booking = b
+            break
+
+    if not target_booking:
+        return jsonify({"success": False, "message": "Private booking not found."}), 404
+
+    save_json(BOOKINGS_JSON, bookings)
+
+    # Push persistent notification for customer
+    cust_email = target_booking.get('customer_email', '').strip().lower()
+    cust_phone = target_booking.get('customer_phone', '').strip()
+
+    notifications = load_json(NOTIFICATIONS_JSON, [])
+    notif_id = f"NOTIF-{int(time.time() % 100000):05d}"
+    service_info = target_booking.get('service_name', 'Eco-Clean')
+    new_notif = {
+        "id": notif_id,
+        "type": "heavy_load_closure",
+        "title": f"Booking #{booking_id} Temporarily Closed (Heavy Load)",
+        "message": f"The private booking #{booking_id} ({service_info}) you raised has been temporarily closed due to heavy load. Please try again later.",
+        "recipient_email": cust_email,
+        "recipient_phone": cust_phone,
+        "ref_id": booking_id,
+        "ref_type": "booking",
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "unread": True
+    }
+    notifications.insert(0, new_notif)
+    save_json(NOTIFICATIONS_JSON, notifications)
+
+    return jsonify({
+        "success": True,
+        "message": f"Booking {booking_id} closed due to heavy load and notification delivered to customer.",
+        "booking": target_booking,
+        "notification": new_notif
+    })
+
+@app.route('/api/admin/clear-solved-history', methods=['POST'])
+def clear_solved_history():
+    tasks = load_json(TASKS_JSON, [])
+    cleared_count = len([t for t in tasks if t.get('status') == 'Resolved'])
+    remaining_tasks = [t for t in tasks if t.get('status') != 'Resolved']
+
+    save_json(TASKS_JSON, remaining_tasks)
+    save_json(SHOWCASE_JSON, [])
+
+    return jsonify({
+        "success": True,
+        "cleared_count": cleared_count,
+        "message": f"Successfully cleared all {cleared_count} solved complaints history and showcase records!"
+    })
+
+@app.route('/api/admin/delete-solved-task', methods=['POST'])
+def delete_solved_task():
+    data = request.get_json() or {}
+    task_id = data.get('task_id')
+
+    if not task_id:
+        return jsonify({"success": False, "message": "Task ID is required."}), 400
+
+    tasks = load_json(TASKS_JSON, [])
+    initial_len = len(tasks)
+    tasks = [t for t in tasks if not (t.get('id') == task_id and t.get('status') == 'Resolved')]
+
+    if len(tasks) == initial_len:
+        return jsonify({"success": False, "message": "Solved task not found."}), 404
+
+    save_json(TASKS_JSON, tasks)
+
+    # Also remove corresponding showcase item if present
+    showcase = load_json(SHOWCASE_JSON, [])
+    showcase = [s for s in showcase if s.get('id') != task_id and s.get('headline') != task_id]
+    save_json(SHOWCASE_JSON, showcase)
+
+    return jsonify({
+        "success": True,
+        "message": f"Solved complaint record #{task_id} deleted successfully."
+    })
+
+@app.route('/api/user/notifications', methods=['GET'])
+def get_user_notifications():
+    email = request.args.get('email', '').strip().lower()
+    phone = request.args.get('phone', '').strip()
+
+    notifications = load_json(NOTIFICATIONS_JSON, [])
+    user_notifs = []
+    for n in notifications:
+        n_email = n.get('recipient_email', '').strip().lower()
+        n_phone = n.get('recipient_phone', '').strip()
+        if (email and n_email == email) or (phone and n_phone == phone) or (not n_email and not n_phone):
+            user_notifs.append(n)
+
+    unread_count = sum(1 for n in user_notifs if n.get('unread', True))
+    return jsonify({
+        "success": True,
+        "notifications": user_notifs,
+        "unread_count": unread_count
+    })
+
+@app.route('/api/user/notifications/mark-read', methods=['POST'])
+def mark_user_notifications_read():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    phone = data.get('phone', '').strip()
+    notif_id = data.get('notification_id')
+
+    notifications = load_json(NOTIFICATIONS_JSON, [])
+    updated = False
+    for n in notifications:
+        n_email = n.get('recipient_email', '').strip().lower()
+        n_phone = n.get('recipient_phone', '').strip()
+        if (notif_id and n.get('id') == notif_id) or \
+           (not notif_id and ((email and n_email == email) or (phone and n_phone == phone))):
+            n['unread'] = False
+            updated = True
+
+    if updated:
+        save_json(NOTIFICATIONS_JSON, notifications)
+
+    return jsonify({"success": True, "message": "Notifications marked as read."})
 
 # ----------------- CITIZEN GREENOX POINTS & REDEEM API -----------------
 

@@ -802,6 +802,13 @@
           </div>
         </div>
         <div class="admin-stat-card">
+          <div class="admin-stat-icon text-emerald"><i class="fa-solid fa-circle-check"></i></div>
+          <div>
+            <span class="admin-stat-label">Solved Complaints History</span>
+            <strong class="admin-stat-num" id="adminStatSolved">0</strong>
+          </div>
+        </div>
+        <div class="admin-stat-card">
           <div class="admin-stat-icon text-blue"><i class="fa-solid fa-file-invoice-dollar"></i></div>
           <div>
             <span class="admin-stat-label">Private Cleaning Bookings</span>
@@ -824,7 +831,7 @@
         </div>
       </section>
 
-      <!-- Admin Tab Controls (5 Tabs) -->
+      <!-- Admin Tab Controls (6 Tabs) -->
       <div class="admin-panel-box">
         <div class="admin-nav-tabs">
           <button type="button" class="admin-tab active" onclick="switchAdminTab('tasks')">
@@ -832,24 +839,29 @@
             <span>1. Tasks (Report Waste)</span>
             <span class="tab-badge" id="adminTasksBadge">0</span>
           </button>
+          <button type="button" class="admin-tab" onclick="switchAdminTab('solved')">
+            <i class="fa-solid fa-clock-rotate-left text-green"></i>
+            <span>2. Solved Complaints History</span>
+            <span class="tab-badge badge-green" id="adminSolvedBadge">0</span>
+          </button>
           <button type="button" class="admin-tab" onclick="switchAdminTab('bookings')">
             <i class="fa-solid fa-file-invoice-dollar"></i>
-            <span>2. Private Bookings</span>
+            <span>3. Private Bookings</span>
             <span class="tab-badge" id="adminBookingsBadge">0</span>
           </button>
           <button type="button" class="admin-tab" onclick="switchAdminTab('emergencies')">
             <i class="fa-solid fa-triangle-exclamation text-red"></i>
-            <span>3. Emergencies (SOS)</span>
+            <span>4. Emergencies (SOS)</span>
             <span class="tab-badge badge-red" id="adminEmgBadge">0</span>
           </button>
           <button type="button" class="admin-tab" onclick="switchAdminTab('reports')">
             <i class="fa-solid fa-file-shield text-gold"></i>
-            <span>4. Employee Incident Reports</span>
+            <span>5. Employee Incident Reports</span>
             <span class="tab-badge" id="adminReportsBadge">0</span>
           </button>
           <button type="button" class="admin-tab" onclick="switchAdminTab('users')">
             <i class="fa-solid fa-users"></i>
-            <span>5. Registered Users (CSV)</span>
+            <span>6. Registered Users (CSV)</span>
             <span class="tab-badge" id="adminUsersBadge">0</span>
           </button>
         </div>
@@ -857,8 +869,10 @@
         <!-- TAB 1: TASKS (Report Waste) -->
         <div class="admin-tab-content active" id="adminTasksSection">
           <div class="admin-section-header">
-            <h4><i class="fa-solid fa-list-check text-green"></i> Waste Incident Tasks (Headline = Reported Address)</h4>
-            <button type="button" class="refresh-btn" onclick="loadAdminData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <h4><i class="fa-solid fa-list-check text-green"></i> Waste Incident Tasks (Active & Pending Complaints)</h4>
+            <div class="admin-header-actions">
+              <button type="button" class="refresh-btn" onclick="loadAdminData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
           </div>
           <div class="tasks-table-responsive">
             <table class="greenox-table">
@@ -878,7 +892,41 @@
           </div>
         </div>
 
-        <!-- TAB 2: PRIVATE BOOKINGS -->
+        <!-- TAB 2: SOLVED COMPLAINTS FULL HISTORY (NEW TAB) -->
+        <div class="admin-tab-content hidden" id="adminSolvedSection">
+          <div class="admin-section-header">
+            <div>
+              <h4><i class="fa-solid fa-circle-check text-green"></i> Solved Waste Complaints History</h4>
+              <span class="section-sub-desc">Full archive of complaints resolved by squads, showing citizen name, email, phone number, and location.</span>
+            </div>
+            <div class="admin-header-actions">
+              <button type="button" class="tbl-btn tbl-btn-delete danger-clear-btn" onclick="adminClearSolvedHistory()">
+                <i class="fa-solid fa-trash-can"></i> Clear Solved History
+              </button>
+              <button type="button" class="refresh-btn" onclick="loadAdminData()"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+          </div>
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Task ID & Solved Time</th>
+                  <th>Reported Location & GPS</th>
+                  <th>Citizen (Raised By)</th>
+                  <th>Citizen Contact (Email & Phone)</th>
+                  <th>Category</th>
+                  <th>Before / After Proof</th>
+                  <th>Duration & Team</th>
+                  <th>Points</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminSolvedTasksTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 3: PRIVATE BOOKINGS -->
         <div class="admin-tab-content hidden" id="adminBookingsSection">
           <div class="admin-section-header">
             <h4><i class="fa-solid fa-file-invoice-dollar text-blue"></i> Private Cleaning Bookings & Receipts</h4>
@@ -895,6 +943,7 @@
                   <th>Service Address</th>
                   <th>Amount</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="adminBookingsTableBody"></tbody>
@@ -902,7 +951,7 @@
           </div>
         </div>
 
-        <!-- TAB 3: EMERGENCIES -->
+        <!-- TAB 4: EMERGENCIES -->
         <div class="admin-tab-content hidden" id="adminEmgSection">
           <div class="admin-section-header">
             <h4 class="text-red"><i class="fa-solid fa-triangle-exclamation"></i> High-Priority Emergency SOS Incidents</h4>
@@ -926,7 +975,7 @@
           </div>
         </div>
 
-        <!-- TAB 4: EMPLOYEE INCIDENT & FALSE REPORTS (NEW TAB) -->
+        <!-- TAB 5: EMPLOYEE INCIDENT & FALSE REPORTS -->
         <div class="admin-tab-content hidden" id="adminReportsSection">
           <div class="admin-section-header">
             <h4><i class="fa-solid fa-file-shield text-gold"></i> False Emergency & Employee Investigation Reports</h4>
@@ -950,7 +999,7 @@
           </div>
         </div>
 
-        <!-- TAB 5: REGISTERED USERS -->
+        <!-- TAB 6: REGISTERED USERS -->
         <div class="admin-tab-content hidden" id="adminUsersSection">
           <div class="admin-section-header">
             <h4><i class="fa-solid fa-users text-gold"></i> Live Registered Users Database (Synced with `registered_user.csv`)</h4>
@@ -1145,11 +1194,42 @@
               </div>
               <p class="pkg-desc">Tailored multi-story estate, industrial warehouse or specialized deep sanitation.</p>
             </div>
+            <div class="package-item package-tree-item" data-name="Plant a Tree (Eco Initiative)" data-price="599" onclick="selectCleaningPackage(this)">
+              <div class="pkg-header">
+                <strong>🌱 Plant a Tree (Eco Initiative)</strong>
+                <span class="pkg-price">₹599</span>
+              </div>
+              <p class="pkg-desc">Plant a native tree sapling with protective guard, organic manure, certificate & geotag tracking.</p>
+            </div>
           </div>
         </div>
 
         <!-- Checkout & Receipt -->
         <div class="checkout-column">
+          <!-- Tree Planting 50% Special Discount Add-on Card -->
+          <div class="tree-addon-card" id="treeAddonCard">
+            <div class="tree-addon-header">
+              <div class="tree-addon-badge"><i class="fa-solid fa-seedling"></i> SPECIAL ECO DISCOUNT</div>
+              <span class="tree-discount-tag">50% SPECIAL DISCOUNT: ₹299 <del>₹599</del></span>
+            </div>
+            <div class="tree-addon-body">
+              <div class="tree-addon-text">
+                <strong>Plant a Tree with this Booking?</strong>
+                <p>Support Green City afforestation! We will plant a dedicated sapling in your name at a special 50% discount (₹299 instead of ₹599).</p>
+              </div>
+              <div class="tree-addon-radios">
+                <label class="tree-radio-label active" id="treeRadioNo">
+                  <input type="radio" name="treeAddonRadio" value="no" checked onchange="toggleTreePlantingAddon(false)">
+                  <span><i class="fa-solid fa-xmark"></i> No</span>
+                </label>
+                <label class="tree-radio-label" id="treeRadioYes">
+                  <input type="radio" name="treeAddonRadio" value="yes" onchange="toggleTreePlantingAddon(true)">
+                  <span>🌱 Yes, Plant a Tree (+₹299)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div class="receipt-box" id="bookingReceiptBox">
             <div class="receipt-header">
               <div class="receipt-logo"><img src="assets/logo.svg" alt="Greenox" /> GREENOX INVOICE</div>
@@ -1161,6 +1241,10 @@
               <div class="receipt-row"><span>Certified Worker Fees</span><span id="rcptWorkerFee">₹250</span></div>
               <div class="receipt-row"><span>Consumables & Eco-Solutions</span><span id="rcptEcoFee">₹120</span></div>
               <div class="receipt-row"><span>Platform Maintenance Fee</span><span id="rcptPlatformFee">₹79</span></div>
+              <div class="receipt-row text-green hidden" id="rcptTreeAddonRow">
+                <span>🌱 Tree Planting Add-on (50% Off Special)</span>
+                <span id="rcptTreeAddonPrice">+₹299</span>
+              </div>
 
               <div class="receipt-row gst-toggle-row">
                 <label for="gstCheckbox" class="gst-label">
