@@ -1547,6 +1547,8 @@ function toggleProfileMenu() {
 
 function closeProfileMenu() {
   document.getElementById('profilePopover').classList.add('hidden');
+}
+
 function toggleNotifications() {
   const notif = document.getElementById('notifDropdown');
   notif.classList.toggle('hidden');

@@ -1,5 +1,29 @@
 [
   {
+    "id": "NOTIF-54897",
+    "type": "heavy_load_closure",
+    "title": "Complaint #TASK-4897 Temporarily Closed (Heavy Load)",
+    "message": "The service / complaint you raised for 'Sector 29 Market Dump' has been temporarily closed due to heavy load. Please try again later.",
+    "recipient_email": "alpha.report@test.com",
+    "recipient_phone": "8888833333",
+    "ref_id": "TASK-4897",
+    "ref_type": "complaint",
+    "timestamp": "2026-09-18 23:38:17",
+    "unread": true
+  },
+  {
+    "id": "NOTIF-54897",
+    "type": "heavy_load_closure",
+    "title": "Booking #PB-4897 Temporarily Closed (Heavy Load)",
+    "message": "The private booking #PB-4897 (Kitchen and Washroom) you raised has been temporarily closed due to heavy load. Please try again later.",
+    "recipient_email": "live.addon@test.com",
+    "recipient_phone": "8888822222",
+    "ref_id": "PB-4897",
+    "ref_type": "booking",
+    "timestamp": "2026-09-18 23:38:17",
+    "unread": true
+  },
+  {
     "id": "NOTIF-53275",
     "type": "heavy_load_closure",
     "title": "Complaint #TASK-3275 Temporarily Closed (Heavy Load)",
