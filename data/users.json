@@ -164,5 +164,33 @@
     "org_id": "ORG-8899",
     "org_name": "EcoTech Global Industries",
     "created_at": "2026-09-09 16:42:38"
+  },
+  {
+    "first_name": "aman",
+    "surname": "upadhyay",
+    "phone": "08173857070",
+    "email": "aman2006upadhyay@gmail.com",
+    "address": "Tugalpur Main Market Road",
+    "password": "aman7070@",
+    "role": "employee",
+    "aadhaar": "1152777466",
+    "employee_type": "private",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-19 17:59:58"
+  },
+  {
+    "first_name": "aman",
+    "surname": "upadhyay",
+    "phone": "08173857070",
+    "email": "aman2006upadhyay@gmail.com",
+    "address": "Tugalpur Main Market Road",
+    "password": "@man7070",
+    "role": "admin",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-19 18:50:16"
   }
 ]

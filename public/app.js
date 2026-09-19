@@ -89,9 +89,14 @@ function applyTheme(theme) {
 }
 
 function updateThemeIcons(iconClass, text) {
-  const icons = document.querySelectorAll('.theme-toggle-btn i');
-  icons.forEach(i => {
-    i.className = `fa-solid ${iconClass}`;
+  const buttons = document.querySelectorAll('.theme-toggle-btn');
+  buttons.forEach(btn => {
+    btn.setAttribute('title', `Switch to ${text}`);
+    btn.setAttribute('aria-label', `Switch to ${text}`);
+    const icon = btn.querySelector('i');
+    if (icon) {
+      icon.className = `fa-solid ${iconClass}`;
+    }
   });
   const textAuth = document.getElementById('themeTextAuth');
   if (textAuth) textAuth.textContent = text;
@@ -131,50 +136,141 @@ function updateRuleUI(el, isValid) {
 // 3. ROLE & AUTH TABS SWITCHING (EMPLOYEE, ORG, CITIZEN, ADMIN)
 // ==========================================================================
 
+function setPortalRole(role) {
+  currentRole = role;
+
+  // 1. Sync Top Navbar Role Tabs
+  const roleButtons = document.querySelectorAll('#roleTabs .role-tab');
+  roleButtons.forEach(b => {
+    if (b.getAttribute('data-role') === role) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
+  });
+
+  // 2. Sync Card Role Tiles & Modal Pills
+  const cardRoleTiles = document.querySelectorAll('#cardRoleTabs .portal-role-tile, #modalRoleTabs .modal-role-pill');
+  cardRoleTiles.forEach(b => {
+    if (b.getAttribute('data-role') === role) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
+  });
+
+  // 3. Update Text Display
+  const roleText = currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
+  const currentRoleEl = document.getElementById('currentRoleText');
+  if (currentRoleEl) currentRoleEl.textContent = roleText;
+
+  // 4. Update Role-specific form fields
+  updateRoleSpecificFormFields();
+  hideAuthAlert();
+}
+
+function updateRoleSpecificFormFields() {
+  const adminKeyGroup = document.getElementById('adminKeyGroup');
+  const empExtra = document.getElementById('employeeExtraFields');
+  const orgExtra = document.getElementById('orgExtraFields');
+  const googleSection = document.getElementById('googleAuthSection');
+
+  if (currentRole === 'admin') {
+    if (currentAuthMode === 'register' && adminKeyGroup) adminKeyGroup.classList.remove('hidden');
+    if (googleSection) googleSection.classList.add('hidden'); // Admin cannot use Google
+    if (empExtra) empExtra.classList.add('hidden');
+    if (orgExtra) orgExtra.classList.add('hidden');
+  } else {
+    if (adminKeyGroup) adminKeyGroup.classList.add('hidden');
+    if (googleSection) googleSection.classList.remove('hidden');
+
+    if (currentRole === 'employee') {
+      if (empExtra && currentAuthMode === 'register') empExtra.classList.remove('hidden');
+      if (orgExtra) orgExtra.classList.add('hidden');
+    } else if (currentRole === 'organization') {
+      if (orgExtra && currentAuthMode === 'register') orgExtra.classList.remove('hidden');
+      if (empExtra) empExtra.classList.add('hidden');
+    } else {
+      if (empExtra) empExtra.classList.add('hidden');
+      if (orgExtra) orgExtra.classList.add('hidden');
+    }
+  }
+}
+
 function initRoleTabs() {
+  // Top Navbar Role Tabs
   const roleButtons = document.querySelectorAll('#roleTabs .role-tab');
   roleButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      roleButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentRole = btn.getAttribute('data-role');
-      
-      const roleText = currentRole.charAt(0).toUpperCase() + currentRole.slice(1);
-      document.getElementById('currentRoleText').textContent = roleText;
-
-      const adminKeyGroup = document.getElementById('adminKeyGroup');
-      const empExtra = document.getElementById('employeeExtraFields');
-      const orgExtra = document.getElementById('orgExtraFields');
-      const googleSection = document.getElementById('googleAuthSection');
-
-      // Admin role configuration
-      if (currentRole === 'admin') {
-        if (currentAuthMode === 'register') adminKeyGroup.classList.remove('hidden');
-        googleSection.classList.add('hidden'); // Admin cannot use Google
-        empExtra.classList.add('hidden');
-        orgExtra.classList.add('hidden');
-      } else {
-        adminKeyGroup.classList.add('hidden');
-        googleSection.classList.remove('hidden'); // Google sign in available for Citizen, Employee, Organization
-
-        // Employee specific fields (Aadhaar & Type)
-        if (currentRole === 'employee') {
-          empExtra.classList.remove('hidden');
-          orgExtra.classList.add('hidden');
-        } 
-        // Organization specific fields (Org ID & Org Name)
-        else if (currentRole === 'organization') {
-          orgExtra.classList.remove('hidden');
-          empExtra.classList.add('hidden');
-        } else {
-          empExtra.classList.add('hidden');
-          orgExtra.classList.add('hidden');
-        }
+      const role = btn.getAttribute('data-role');
+      setPortalRole(role);
+      const card = document.getElementById('authMainCard');
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-
-      hideAuthAlert();
     });
   });
+
+  // Card Role Tiles (Matching Reference Image)
+  const cardRoleTiles = document.querySelectorAll('#cardRoleTabs .portal-role-tile, #modalRoleTabs .modal-role-pill');
+  cardRoleTiles.forEach(tile => {
+    tile.addEventListener('click', () => {
+      const role = tile.getAttribute('data-role');
+      setPortalRole(role);
+    });
+  });
+
+  // Global escape key listener
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeAuthModal();
+    }
+  });
+
+  // Navbar scroll detection for frosted glass effect
+  window.addEventListener('scroll', () => {
+    const isScrolled = window.scrollY > 20;
+    const landingNav = document.querySelector('.landing-navbar');
+    const mainNav = document.querySelector('.main-navbar');
+    const empNav = document.querySelector('.employee-navbar');
+    const orgNav = document.querySelector('.org-navbar');
+    const adminNav = document.querySelector('.admin-topbar');
+    if (landingNav) landingNav.classList.toggle('scrolled', isScrolled);
+    if (mainNav) mainNav.classList.toggle('scrolled', isScrolled);
+    if (empNav) empNav.classList.toggle('scrolled', isScrolled);
+    if (orgNav) orgNav.classList.toggle('scrolled', isScrolled);
+    if (adminNav) adminNav.classList.toggle('scrolled', isScrolled);
+  });
+}
+
+function openAuthModal(mode = 'register', role = null) {
+  if (role) {
+    setPortalRole(role);
+  }
+  if (mode) {
+    switchAuthMode(mode);
+  }
+  const card = document.getElementById('authMainCard');
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => {
+      const targetInput = mode === 'login' ? document.getElementById('loginPhone') : document.getElementById('regFirstName');
+      if (targetInput) targetInput.focus();
+    }, 120);
+  }
+  const modal = document.getElementById('authModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+  }
+}
+
+function closeAuthModal() {
+  const modal = document.getElementById('authModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+  hideAuthAlert();
 }
 
 function switchAuthMode(mode) {
@@ -183,32 +279,26 @@ function switchAuthMode(mode) {
   const registerBtn = document.getElementById('tabRegisterBtn');
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
-  const adminKeyGroup = document.getElementById('adminKeyGroup');
-  const empExtra = document.getElementById('employeeExtraFields');
-  const orgExtra = document.getElementById('orgExtraFields');
+
+  if (!loginBtn || !registerBtn || !loginForm || !registerForm) return;
 
   if (mode === 'login') {
     loginBtn.classList.add('active');
     registerBtn.classList.remove('active');
     loginForm.classList.remove('hidden');
     registerForm.classList.add('hidden');
-    adminKeyGroup.classList.add('hidden');
   } else {
     registerBtn.classList.add('active');
     loginBtn.classList.remove('active');
     registerForm.classList.remove('hidden');
     loginForm.classList.add('hidden');
-    if (currentRole === 'admin') {
-      adminKeyGroup.classList.remove('hidden');
-    }
-    if (currentRole === 'employee') {
-      empExtra.classList.remove('hidden');
-    }
-    if (currentRole === 'organization') {
-      orgExtra.classList.remove('hidden');
-    }
   }
+  updateRoleSpecificFormFields();
   hideAuthAlert();
+}
+
+function scrollToAuth(mode) {
+  openAuthModal(mode || 'register');
 }
 
 function togglePasswordVisibility(inputId) {
@@ -460,6 +550,7 @@ function checkExistingSession() {
 // ==========================================================================
 
 function transitionToDashboard(user) {
+  closeAuthModal();
   // Hide all view pages first
   document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
 
@@ -526,7 +617,7 @@ function transitionToDashboard(user) {
   document.getElementById('emgCallerName').value = fullName;
   document.getElementById('emgCallerPhone').value = user.phone;
   document.getElementById('emgAddressInput').value = user.address || '';
-  
+
   loadSolvedShowcaseFeed();
   loadCitizenPoints();
   fetchUserNotifications();
@@ -549,7 +640,7 @@ function startSessionStatusPolling() {
         }
         fetchUserNotifications();
       }
-    } catch (e) {}
+    } catch (e) { }
   }, 8000);
 }
 
@@ -674,17 +765,30 @@ function renderPrivateEmergencies(emergencies) {
   tbody.innerHTML = '';
 
   if (!emergencies || emergencies.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4"><i class="fa-solid fa-shield text-green"></i> No active hazard emergency calls nearby.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-5" style="text-align: center; padding: 40px;"><i class="fa-solid fa-shield-halved text-green" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i><strong>All Clear!</strong><br><small>No active emergency SOS hazard calls nearby.</small></td></tr>`;
     return;
   }
 
   emergencies.forEach(e => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong class="text-red">${e.id}</strong></td>
-      <td><strong>${e.headline}</strong><br><small>${e.emergency_details}</small></td>
-      <td>${e.address}</td>
-      <td>${e.caller_name}<br><small>${e.caller_phone}</small></td>
+      <td><span class="emg-id-tag">${e.id}</span></td>
+      <td>
+        <strong style="color: var(--text-main); font-size: 0.94rem;">${e.headline}</strong>
+        <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px;">${e.emergency_details}</div>
+      </td>
+      <td>
+        <div style="display: flex; align-items: flex-start; gap: 6px;">
+          <i class="fa-solid fa-location-dot text-red" style="margin-top: 3px; font-size: 0.85rem;"></i>
+          <span>${e.address}</span>
+        </div>
+      </td>
+      <td>
+        <strong>${e.caller_name}</strong>
+        <div style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+          <i class="fa-solid fa-phone" style="font-size: 0.75rem;"></i> ${e.caller_phone}
+        </div>
+      </td>
       <td><span class="status-tag status-emergency">${e.severity}</span></td>
       <td>
         <button class="table-action-btn btn-resolve-spot" onclick="openResolveEmergencyModal('${e.id}')">
@@ -726,7 +830,7 @@ function startPrivateEmployeePolling() {
           triggerEmergencyPopup(latest);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }, 6000);
 }
 
@@ -814,8 +918,8 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   const Δλ = (lon2 - lon1) * Math.PI / 180;
 
   const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -1081,14 +1185,19 @@ function switchAdminTab(tabName) {
   document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.admin-tab-content').forEach(c => c.classList.add('hidden'));
 
-  event.currentTarget.classList.add('active');
+  const targetTab = document.querySelector(`.admin-tab[data-tab="${tabName}"]`);
+  if (targetTab) {
+    targetTab.classList.add('active');
+  } else if (typeof event !== 'undefined' && event && event.currentTarget && event.currentTarget.classList.contains('admin-tab')) {
+    event.currentTarget.classList.add('active');
+  }
 
-  if (tabName === 'tasks') document.getElementById('adminTasksSection').classList.remove('hidden');
-  if (tabName === 'solved') document.getElementById('adminSolvedSection').classList.remove('hidden');
-  if (tabName === 'bookings') document.getElementById('adminBookingsSection').classList.remove('hidden');
-  if (tabName === 'emergencies') document.getElementById('adminEmgSection').classList.remove('hidden');
-  if (tabName === 'reports') document.getElementById('adminReportsSection').classList.remove('hidden');
-  if (tabName === 'users') document.getElementById('adminUsersSection').classList.remove('hidden');
+  if (tabName === 'tasks') document.getElementById('adminTasksSection')?.classList.remove('hidden');
+  if (tabName === 'solved') document.getElementById('adminSolvedSection')?.classList.remove('hidden');
+  if (tabName === 'bookings') document.getElementById('adminBookingsSection')?.classList.remove('hidden');
+  if (tabName === 'emergencies') document.getElementById('adminEmgSection')?.classList.remove('hidden');
+  if (tabName === 'reports') document.getElementById('adminReportsSection')?.classList.remove('hidden');
+  if (tabName === 'users') document.getElementById('adminUsersSection')?.classList.remove('hidden');
 }
 
 async function loadAdminData() {
@@ -1526,11 +1635,22 @@ function openBookCleaningModal() {
 
 function openEmergencyModal() {
   document.getElementById('emergencyModal').classList.remove('hidden');
+  resetQuickEmergency();
+  if (currentUser) {
+    const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || currentUser.name || 'Citizen';
+    const nameInput = document.getElementById('emgCallerName');
+    const phoneInput = document.getElementById('emgCallerPhone');
+    if (nameInput) nameInput.value = fullName;
+    if (phoneInput) phoneInput.value = currentUser.phone || '';
+  }
   switchEmergencyType('same_location');
 }
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.add('hidden');
+  if (modalId === 'emergencyModal') {
+    resetQuickEmergency();
+  }
 }
 
 function handleBackdropClick(event, modalId) {
@@ -1541,19 +1661,19 @@ function handleBackdropClick(event, modalId) {
 
 function toggleProfileMenu() {
   const popover = document.getElementById('profilePopover');
-  popover.classList.toggle('hidden');
-  document.getElementById('notifDropdown').classList.add('hidden');
+  if (popover) popover.classList.toggle('hidden');
 }
 
 function closeProfileMenu() {
-  document.getElementById('profilePopover').classList.add('hidden');
+  const popover = document.getElementById('profilePopover');
+  if (popover) popover.classList.add('hidden');
 }
 
 function toggleNotifications() {
   const notif = document.getElementById('notifDropdown');
+  if (!notif) return;
   notif.classList.toggle('hidden');
-  document.getElementById('profilePopover').classList.add('hidden');
-  
+
   if (!notif.classList.contains('hidden') && currentUser) {
     // Mark notifications as read
     fetch('/api/user/notifications/mark-read', {
@@ -1564,9 +1684,20 @@ function toggleNotifications() {
       const badge = document.getElementById('notifBadgeCount');
       if (badge) badge.textContent = '0';
       document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
+
+// Close profile popover when clicking outside
+document.addEventListener('click', (e) => {
+  const popover = document.getElementById('profilePopover');
+  const avatarBtn = document.getElementById('userAvatarBtn');
+  if (popover && !popover.classList.contains('hidden')) {
+    if (!popover.contains(e.target) && avatarBtn && !avatarBtn.contains(e.target)) {
+      popover.classList.add('hidden');
+    }
+  }
+});
 
 function enableAddressEditing() {
   const currentAddress = document.getElementById('profileAddressText').textContent;
@@ -1830,7 +1961,7 @@ function toggleTreePlantingAddon(isYes) {
   isTreeAddonSelected = isYes;
   const radioYes = document.getElementById('treeRadioYes');
   const radioNo = document.getElementById('treeRadioNo');
-  
+
   if (isYes) {
     if (radioYes) radioYes.classList.add('active');
     if (radioNo) radioNo.classList.remove('active');
@@ -1967,16 +2098,76 @@ function switchEmergencyType(type) {
   }
 }
 
+let selectedEmergencyNeeds = [];
+
+function toggleQuickEmergency(btn, needName) {
+  const isSelected = btn.classList.toggle('selected');
+  if (isSelected) {
+    if (!selectedEmergencyNeeds.includes(needName)) {
+      selectedEmergencyNeeds.push(needName);
+    }
+  } else {
+    selectedEmergencyNeeds = selectedEmergencyNeeds.filter(item => item !== needName);
+  }
+  updateEmergencyDetailsFromQuick();
+}
+
+function updateEmergencyDetailsFromQuick() {
+  const detailsInput = document.getElementById('emgDetailsInput');
+  if (!detailsInput) return;
+
+  // Extract any user custom notes (strip previous [Need] tags)
+  const val = detailsInput.value;
+  const customNotes = val.replace(/\[[^\]]+\]/g, '').replace(/^[\s,;:-]+|[\s,;:-]+$/g, '').trim();
+
+  const tags = selectedEmergencyNeeds.map(need => `[${need}]`).join(' ');
+
+  if (tags && customNotes) {
+    detailsInput.value = `${tags} - ${customNotes}`;
+  } else if (tags) {
+    detailsInput.value = tags;
+  } else {
+    detailsInput.value = customNotes;
+  }
+
+  // Remove HTML5 required attribute if quick needs selected
+  if (selectedEmergencyNeeds.length > 0) {
+    detailsInput.removeAttribute('required');
+  }
+}
+
+function resetQuickEmergency() {
+  selectedEmergencyNeeds = [];
+  document.querySelectorAll('.quick-emg-card').forEach(btn => btn.classList.remove('selected'));
+  const detailsInput = document.getElementById('emgDetailsInput');
+  if (detailsInput) {
+    detailsInput.value = '';
+    detailsInput.removeAttribute('required');
+  }
+  const grid = document.getElementById('quickEmgGrid');
+  if (grid) grid.classList.remove('shake-highlight');
+}
+
 async function submitEmergencyHelp(event) {
   event.preventDefault();
-  const details = document.getElementById('emgDetailsInput').value.trim();
+  let details = document.getElementById('emgDetailsInput').value.trim();
   const address = document.getElementById('emgAddressInput').value.trim();
   const callerName = document.getElementById('emgCallerName').value.trim() || 'Citizen';
   const callerPhone = document.getElementById('emgCallerPhone').value.trim();
   const callerEmail = currentUser ? currentUser.email : '';
 
+  // Fallback: If user clicked quick options but details input is somehow blank
+  if (!details && selectedEmergencyNeeds.length > 0) {
+    details = selectedEmergencyNeeds.map(need => `[${need}]`).join(', ');
+  }
+
   if (!details) {
-    showToast('Please state what the emergency is', 'error');
+    const grid = document.getElementById('quickEmgGrid');
+    if (grid) {
+      grid.classList.add('shake-highlight');
+      setTimeout(() => grid.classList.remove('shake-highlight'), 1200);
+    }
+    showToast('Please tap what you need (Ambulance, Medicine, Fire...) or describe the emergency', 'error');
     return;
   }
   if (!address) {
@@ -2011,6 +2202,7 @@ async function submitEmergencyHelp(event) {
       showToast('EMERGENCY SOS DISPATCHED TO PRIVATE SQUAD & ADMIN!', 'error');
       closeModal('emergencyModal');
       document.getElementById('emergencyForm').reset();
+      resetQuickEmergency();
       addNotification(`🚨 Emergency SOS Sent: ${details.slice(0, 30)}...`, 'just now');
     } else {
       showToast('Emergency alert dispatch failed', 'error');
@@ -2229,8 +2421,8 @@ function updateRewardMeters() {
   if (text1) text1.textContent = `${Math.min(currentCitizenPoints, 200)} / 200 pts (${pct1}%)`;
   if (btn1) {
     btn1.disabled = currentCitizenPoints < 200;
-    btn1.innerHTML = currentCitizenPoints >= 200 
-      ? '<i class="fa-solid fa-gift"></i> Redeem for 200 Points' 
+    btn1.innerHTML = currentCitizenPoints >= 200
+      ? '<i class="fa-solid fa-gift"></i> Redeem for 200 Points'
       : `<i class="fa-solid fa-lock"></i> Need ${200 - currentCitizenPoints} More Pts`;
   }
 
@@ -2243,8 +2435,8 @@ function updateRewardMeters() {
   if (text2) text2.textContent = `${Math.min(currentCitizenPoints, 100)} / 100 pts (${pct2}%)`;
   if (btn2) {
     btn2.disabled = currentCitizenPoints < 100;
-    btn2.innerHTML = currentCitizenPoints >= 100 
-      ? '<i class="fa-solid fa-gift"></i> Redeem for 100 Points' 
+    btn2.innerHTML = currentCitizenPoints >= 100
+      ? '<i class="fa-solid fa-gift"></i> Redeem for 100 Points'
       : `<i class="fa-solid fa-lock"></i> Need ${100 - currentCitizenPoints} More Pts`;
   }
 
@@ -2257,8 +2449,8 @@ function updateRewardMeters() {
   if (text3) text3.textContent = `${Math.min(currentCitizenPoints, 1000)} / 1000 pts (${pct3}%)`;
   if (btn3) {
     btn3.disabled = currentCitizenPoints < 1000;
-    btn3.innerHTML = currentCitizenPoints >= 1000 
-      ? '<i class="fa-solid fa-gift"></i> Redeem for 1000 Points' 
+    btn3.innerHTML = currentCitizenPoints >= 1000
+      ? '<i class="fa-solid fa-gift"></i> Redeem for 1000 Points'
       : `<i class="fa-solid fa-lock"></i> Need ${1000 - currentCitizenPoints} More Pts`;
   }
 }
@@ -2422,10 +2614,10 @@ function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  
+
   const icon = type === 'success' ? 'fa-circle-check' : (type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info');
   toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
-  
+
   container.appendChild(toast);
   setTimeout(() => {
     toast.style.animation = 'fadeOut 0.3s forwards';
@@ -2451,7 +2643,7 @@ async function fetchUserNotifications() {
         }
       });
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function renderNotificationsList(notifs) {
