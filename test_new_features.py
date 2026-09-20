@@ -258,6 +258,73 @@ def test_phone_number_digit_validation():
     assert data_valid.get("success") is True
     print(">>> TEST 5 PASSED: 10-digit phone number validation on registration verified!")
 
+def test_resend_email_otp_verification():
+    print("\n--- TEST 6: Resend.com Email OTP Verification Flow ---")
+    ts = int(time.time() % 100000)
+    test_email = f"resend_user_{ts}@greenox.com"
+    test_phone = f"955{ts:07d}"
+
+    # 1. Invalid email format
+    res_inv = client.post("/api/auth/send-verification-otp", json={
+        "email": "invalid-email-format",
+        "first_name": "Test",
+        "role": "citizen"
+    })
+    print("Invalid email format:", res_inv.status_code, res_inv.get_json())
+    assert res_inv.status_code == 400
+
+    # 2. Valid OTP request
+    res_otp = client.post("/api/auth/send-verification-otp", json={
+        "email": test_email,
+        "first_name": "ResendTester",
+        "role": "citizen"
+    })
+    data_otp = res_otp.get_json()
+    print("Valid OTP request:", res_otp.status_code, data_otp)
+    assert res_otp.status_code == 200
+    assert data_otp.get("success") is True
+    generated_otp = data_otp.get("dev_otp") or "123456"
+
+    # 3. Rate limiting (immediate second request within 15s)
+    res_rate = client.post("/api/auth/send-verification-otp", json={
+        "email": test_email,
+        "first_name": "ResendTester",
+        "role": "citizen"
+    })
+    print("Rate limited request (within 15s):", res_rate.status_code, res_rate.get_json())
+    assert res_rate.status_code == 429
+
+    # 4. Verify OTP with wrong code
+    res_verify_bad = client.post("/api/auth/verify-otp", json={
+        "email": test_email,
+        "otp": "000000"
+    })
+    print("Verify bad OTP:", res_verify_bad.status_code, res_verify_bad.get_json())
+    assert res_verify_bad.status_code == 400
+
+    # 5. Registration with wrong OTP
+    res_reg_bad = client.post("/api/register", json={
+        "first_name": "Resend", "surname": "Tester", "phone": test_phone,
+        "email": test_email, "password": "Secure@123",
+        "confirm_password": "Secure@123", "role": "citizen",
+        "otp": "000000"
+    })
+    print("Registration with wrong OTP:", res_reg_bad.status_code, res_reg_bad.get_json())
+    assert res_reg_bad.status_code == 400
+    assert "Invalid 6-digit" in res_reg_bad.get_json().get("message", "")
+
+    # 6. Registration with correct OTP
+    res_reg_ok = client.post("/api/register", json={
+        "first_name": "Resend", "surname": "Tester", "phone": test_phone,
+        "email": test_email, "password": "Secure@123",
+        "confirm_password": "Secure@123", "role": "citizen",
+        "otp": generated_otp
+    })
+    print("Registration with valid OTP:", res_reg_ok.status_code, res_reg_ok.get_json())
+    assert res_reg_ok.status_code == 200
+    assert res_reg_ok.get_json().get("success") is True
+    print(">>> TEST 6 PASSED: Resend.com Email OTP generation, rate limiting, and verification verified!")
+
 if __name__ == "__main__":
     try:
         test_login_lockout()
@@ -265,11 +332,13 @@ if __name__ == "__main__":
         test_rewards_redemption(email, phone, pts)
         test_admin_user_management(email, phone)
         test_phone_number_digit_validation()
+        test_resend_email_otp_verification()
         print("\n=======================================================")
-        print("ALL 5 FEATURE TESTS PASSED 100% SUCCESSFULLY!")
+        print("ALL 6 FEATURE TESTS PASSED 100% SUCCESSFULLY!")
         print("=======================================================")
     except Exception as e:
         print(f"\n[!] Test failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
+

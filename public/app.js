@@ -417,45 +417,210 @@ async function handleRegister(event) {
 
   const submitBtn = document.getElementById('registerSubmitBtn');
   submitBtn.disabled = true;
-  submitBtn.querySelector('.btn-text').textContent = 'Processing Registration...';
+  submitBtn.querySelector('.btn-text').textContent = 'Sending Verification Code...';
+
+  // Store registration data for OTP verification step
+  pendingRegistrationData = {
+    first_name: firstName,
+    surname: surname,
+    phone: phone,
+    email: email,
+    address: address,
+    password: password,
+    confirm_password: confirmPassword,
+    role: currentRole,
+    admin_key: adminKey,
+    aadhaar: aadhaar,
+    employee_type: employeeType,
+    org_id: orgId,
+    org_name: orgName
+  };
 
   try {
-    const response = await fetch('/api/register', {
+    const response = await fetch('/api/auth/send-verification-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        first_name: firstName,
-        surname: surname,
-        phone: phone,
         email: email,
-        address: address,
-        password: password,
-        confirm_password: confirmPassword,
-        role: currentRole,
-        admin_key: adminKey,
-        aadhaar: aadhaar,
-        employee_type: employeeType,
-        org_id: orgId,
-        org_name: orgName
+        first_name: firstName,
+        role: currentRole
       })
     });
 
     const result = await response.json();
 
     if (result.success) {
-      showToast('Registration completed successfully!', 'success');
-      showAuthAlert('Registration completed! You can now log in.', 'success');
-      document.getElementById('loginPhone').value = phone;
-      document.getElementById('loginEmail').value = email;
-      setTimeout(() => switchAuthMode('login'), 1200);
+      document.getElementById('otpTargetEmail').textContent = email;
+      document.getElementById('otpCodeInput').value = '';
+      hideOtpAlert();
+      document.getElementById('emailOtpModal').classList.remove('hidden');
+      startOtpTimer(30);
+
+      if (result.dev_mode && result.dev_otp) {
+        showOtpAlert(`ℹ️ Simulation Mode: Your verification code is <strong>${result.dev_otp}</strong>`, 'success');
+      }
+
+      showToast('Verification code sent to your email!', 'success');
+      setTimeout(() => document.getElementById('otpCodeInput')?.focus(), 200);
     } else {
-      showAuthAlert(result.message || 'Registration failed.', 'error');
+      showAuthAlert(result.message || 'Failed to send verification code. Please check your email.', 'error');
     }
   } catch (err) {
-    showAuthAlert('Server connection error. Please try again.', 'error');
+    showAuthAlert('Network error while requesting verification code. Please try again.', 'error');
   } finally {
     submitBtn.disabled = false;
     submitBtn.querySelector('.btn-text').textContent = 'Complete Registration';
+  }
+}
+
+// ==========================================================================
+// 5.1 RESEND.COM OTP VERIFICATION HANDLERS
+// ==========================================================================
+
+let pendingRegistrationData = null;
+let otpCountdownTimer = null;
+
+function showOtpAlert(message, type = 'error') {
+  const alertBox = document.getElementById('otpAlertBox');
+  if (!alertBox) return;
+  alertBox.className = `alert-box ${type}`;
+  alertBox.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i> <span>${message}</span>`;
+  alertBox.classList.remove('hidden');
+}
+
+function hideOtpAlert() {
+  const alertBox = document.getElementById('otpAlertBox');
+  if (alertBox) alertBox.classList.add('hidden');
+}
+
+function startOtpTimer(seconds = 30) {
+  if (otpCountdownTimer) clearInterval(otpCountdownTimer);
+  
+  let remaining = seconds;
+  const timerText = document.getElementById('otpTimerText');
+  const countdownEl = document.getElementById('otpCountdown');
+  const resendBtn = document.getElementById('resendOtpBtn');
+
+  if (timerText) timerText.classList.remove('hidden');
+  if (resendBtn) resendBtn.classList.add('hidden');
+  if (countdownEl) countdownEl.textContent = remaining;
+
+  otpCountdownTimer = setInterval(() => {
+    remaining--;
+    if (countdownEl) countdownEl.textContent = remaining;
+
+    if (remaining <= 0) {
+      clearInterval(otpCountdownTimer);
+      otpCountdownTimer = null;
+      if (timerText) timerText.classList.add('hidden');
+      if (resendBtn) resendBtn.classList.remove('hidden');
+    }
+  }, 1000);
+}
+
+function closeEmailOtpModal() {
+  closeModal('emailOtpModal');
+  if (otpCountdownTimer) {
+    clearInterval(otpCountdownTimer);
+    otpCountdownTimer = null;
+  }
+}
+
+async function handleResendOtp() {
+  if (!pendingRegistrationData || !pendingRegistrationData.email) {
+    showOtpAlert('No active registration session found. Please fill out the registration form again.', 'error');
+    return;
+  }
+
+  const resendBtn = document.getElementById('resendOtpBtn');
+  if (resendBtn) {
+    resendBtn.disabled = true;
+    resendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Resending...';
+  }
+
+  try {
+    const response = await fetch('/api/auth/send-verification-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: pendingRegistrationData.email,
+        first_name: pendingRegistrationData.first_name,
+        role: pendingRegistrationData.role
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      startOtpTimer(30);
+      if (result.dev_mode && result.dev_otp) {
+        showOtpAlert(`ℹ️ Simulation Mode: New verification code is <strong>${result.dev_otp}</strong>`, 'success');
+      } else {
+        showOtpAlert('A new verification code has been sent to your email.', 'success');
+      }
+      showToast('New verification code sent!', 'success');
+    } else {
+      showOtpAlert(result.message || 'Failed to resend verification code.', 'error');
+    }
+  } catch (err) {
+    showOtpAlert('Network error while resending verification code.', 'error');
+  } finally {
+    if (resendBtn) {
+      resendBtn.disabled = false;
+      resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Resend Code';
+    }
+  }
+}
+
+async function handleVerifyAndRegister() {
+  hideOtpAlert();
+
+  const otpInput = document.getElementById('otpCodeInput');
+  const otp = otpInput ? otpInput.value.trim() : '';
+
+  if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+    showOtpAlert('Please enter the complete 6-digit numeric verification code.', 'error');
+    otpInput?.focus();
+    return;
+  }
+
+  if (!pendingRegistrationData) {
+    showOtpAlert('Registration session expired. Please fill out the registration form again.', 'error');
+    return;
+  }
+
+  const verifyBtn = document.getElementById('verifyOtpSubmitBtn');
+  verifyBtn.disabled = true;
+  verifyBtn.querySelector('.btn-text').textContent = 'Verifying & Creating Account...';
+
+  try {
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...pendingRegistrationData,
+        otp: otp
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      closeEmailOtpModal();
+      showToast('Registration completed successfully!', 'success');
+      showAuthAlert('Registration completed! You can now log in.', 'success');
+      document.getElementById('loginPhone').value = pendingRegistrationData.phone;
+      document.getElementById('loginEmail').value = pendingRegistrationData.email;
+      pendingRegistrationData = null;
+      setTimeout(() => switchAuthMode('login'), 1200);
+    } else {
+      showOtpAlert(result.message || 'Registration failed. Invalid or expired code.', 'error');
+    }
+  } catch (err) {
+    showOtpAlert('Server error occurred during verification. Please try again.', 'error');
+  } finally {
+    verifyBtn.disabled = false;
+    verifyBtn.querySelector('.btn-text').textContent = 'Verify & Create Account';
   }
 }
 
