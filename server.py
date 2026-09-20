@@ -142,192 +142,6 @@ def ensure_clean_storage():
 
 ensure_clean_storage()
 
-# ----------------- RESEND EMAIL & OTP VERIFICATION API -----------------
-
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
-RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', 'GREENOX Verification <onboarding@resend.dev>').strip()
-
-# In-memory OTP storage for email verification: email -> {"otp": str, "expires_at": float, "first_name": str, "created_at": float}
-EMAIL_VERIFICATION_OTPS = {}
-
-def send_resend_verification_email(to_email, first_name, otp_code):
-    """
-    Sends a branded GREENOX verification OTP email using Resend.com API.
-    """
-    subject = f"GREENOX Verification Code: {otp_code}"
-    
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0fdf4; margin: 0; padding: 20px; color: #1f2937; }}
-        .email-card {{ max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.1); border: 1px solid #d1fae5; }}
-        .header {{ background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center; color: #ffffff; }}
-        .header h1 {{ margin: 0; font-size: 26px; letter-spacing: 1px; font-weight: 800; }}
-        .header p {{ margin: 6px 0 0; font-size: 13px; opacity: 0.9; }}
-        .content {{ padding: 32px 28px; text-align: center; }}
-        .greeting {{ font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #111827; }}
-        .desc {{ font-size: 14px; line-height: 1.6; color: #4b5563; margin-bottom: 24px; }}
-        .otp-container {{ background: #ecfdf5; border: 2px dashed #10b981; border-radius: 12px; padding: 18px 24px; display: inline-block; margin: 0 auto 24px; }}
-        .otp-label {{ font-size: 11px; text-transform: uppercase; color: #059669; font-weight: 700; letter-spacing: 1.5px; margin-bottom: 6px; }}
-        .otp-code {{ font-size: 34px; font-weight: 800; letter-spacing: 8px; color: #065f46; font-family: monospace; }}
-        .expiry-note {{ font-size: 12px; color: #6b7280; margin-top: 4px; }}
-        .security-warning {{ background: #fef3c7; border-left: 4px solid #f59e0b; padding: 10px 14px; border-radius: 6px; font-size: 12px; color: #92400e; text-align: left; margin-bottom: 20px; }}
-        .footer {{ background: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #f3f4f6; }}
-      </style>
-    </head>
-    <body>
-      <div class="email-card">
-        <div class="header">
-          <h1>🌿 GREENOX</h1>
-          <p>Smart Urban Cleanliness & Municipal Waste Management</p>
-        </div>
-        <div class="content">
-          <div class="greeting">Hello {first_name or 'Eco Citizen'},</div>
-          <div class="desc">
-            Welcome to the GREENOX Smart Cleanliness Platform! Please use the 6-digit verification code below to complete your account registration:
-          </div>
-          <div class="otp-container">
-            <div class="otp-label">Your Email Verification Code</div>
-            <div class="otp-code">{otp_code}</div>
-            <div class="expiry-note">⏱️ Code valid for 10 minutes</div>
-          </div>
-          <div class="security-warning">
-            🔒 <strong>Security Warning:</strong> Never share this code with anyone. GREENOX administrators will never ask for your verification code.
-          </div>
-        </div>
-        <div class="footer">
-          &copy; 2026 GREENOX Platform • Smart Clean City Initiative
-        </div>
-      </div>
-    </body>
-    </html>
-    """
-
-    api_key = os.environ.get('RESEND_API_KEY', '').strip()
-    from_email = os.environ.get('RESEND_FROM_EMAIL', 'GREENOX Verification <onboarding@resend.dev>').strip()
-    
-    if not api_key:
-        print(f"[RESEND NOTICE] No RESEND_API_KEY set. In development simulation mode. Generated OTP for {to_email}: {otp_code}")
-        return True, "Development mode: OTP generated (Check server console or dev preview)", "simulated-id"
-
-    payload = {
-        "from": from_email,
-        "to": [to_email],
-        "subject": subject,
-        "html": html_content
-    }
-
-    req = urllib.request.Request(
-        "https://api.resend.com/emails",
-        data=json.dumps(payload).encode('utf-8'),
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "GREENOX-Server/1.0"
-        },
-        method="POST"
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            resp_data = json.loads(resp.read().decode('utf-8'))
-            print(f"[RESEND SUCCESS] Sent verification OTP to {to_email}. Response: {resp_data}")
-            return True, "Verification email sent successfully via Resend.com!", resp_data.get('id')
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode('utf-8')
-        try:
-            err_json = json.loads(err_body)
-            err_msg = err_json.get('message', err_body)
-        except Exception:
-            err_msg = err_body
-        print(f"[RESEND NOTICE {e.code}] {err_msg}")
-        if e.code == 403 and "only send testing emails to your own email address" in err_msg:
-            return True, f"Code sent to {to_email}. (Resend Test: Code is {otp_code})", "resend-test-simulation"
-        return False, f"Resend email delivery failed: {err_msg}", None
-    except Exception as ex:
-        print(f"[RESEND EXCEPTION] {str(ex)}")
-        return False, f"Email delivery error: {str(ex)}", None
-
-
-@app.route('/api/auth/send-verification-otp', methods=['POST'])
-def send_verification_otp():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-    first_name = data.get('first_name', '').strip()
-    role = data.get('role', 'citizen').strip().lower()
-
-    if not email or not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
-        return jsonify({"success": False, "message": "Please enter a valid email address."}), 400
-
-    # Check if user with this email & role already registered
-    users = load_json(USERS_JSON, [])
-    for u in users:
-        if u.get('email') == email and u.get('role') == role:
-            return jsonify({"success": False, "message": f"An account with email {email} already exists for role {role.capitalize()}."}), 400
-
-    # Rate limiting on OTP generation (cooldown 10s)
-    existing = EMAIL_VERIFICATION_OTPS.get(email)
-    now = time.time()
-    if existing and (existing.get('created_at', 0) + 10 > now):
-        wait_sec = int((existing.get('created_at', 0) + 10) - now)
-        return jsonify({"success": False, "message": f"Please wait {wait_sec} seconds before requesting another code."}), 429
-
-    # Generate 6-digit OTP
-    otp_code = f"{random.randint(100000, 999999)}"
-    EMAIL_VERIFICATION_OTPS[email] = {
-        "otp": otp_code,
-        "expires_at": now + 600,  # 10 minutes
-        "created_at": now,
-        "first_name": first_name
-    }
-
-    # Send through Resend
-    success, msg, resend_id = send_resend_verification_email(email, first_name, otp_code)
-    
-    is_simulation = (resend_id == 'simulated-id' or resend_id == 'resend-test-simulation')
-
-    if not success and not is_simulation:
-        return jsonify({"success": False, "message": msg}), 502
-
-    resp_payload = {
-        "success": True,
-        "message": f"Verification code sent to {email}. Please check your inbox / spam folder.",
-        "resend_id": resend_id,
-        "dev_mode": is_simulation
-    }
-    if is_simulation:
-        resp_payload["dev_otp"] = otp_code
-        resp_payload["message"] = f"Verification code generated for {email}. (Resend Test: Code is {otp_code})"
-
-    return jsonify(resp_payload)
-
-
-@app.route('/api/auth/verify-otp', methods=['POST'])
-def verify_otp_endpoint():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-    otp = data.get('otp', '').strip()
-
-    if not email or not otp:
-        return jsonify({"success": False, "message": "Email and OTP code are required."}), 400
-
-    otp_info = EMAIL_VERIFICATION_OTPS.get(email)
-    if not otp_info:
-        return jsonify({"success": False, "message": "No verification code requested for this email. Please request a new code."}), 400
-
-    if time.time() > otp_info.get('expires_at', 0):
-        EMAIL_VERIFICATION_OTPS.pop(email, None)
-        return jsonify({"success": False, "message": "Verification code has expired. Please request a new code."}), 400
-
-    if str(otp_info.get('otp', '')).strip() != str(otp).strip():
-        return jsonify({"success": False, "message": "Invalid 6-digit verification code. Please try again."}), 400
-
-    return jsonify({"success": True, "message": "Email successfully verified!"})
-
-
 # ----------------- AUTHENTICATION API -----------------
 
 @app.route('/api/register', methods=['POST'])
@@ -347,7 +161,6 @@ def register():
     org_id = data.get('org_id', '').strip()
     org_name = data.get('org_name', '').strip()
     is_google = data.get('is_google', False)
-    otp = data.get('otp', '').strip()
 
     # Basic validations
     if not first_name or not phone or not email:
@@ -361,21 +174,8 @@ def register():
     if not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
         return jsonify({"success": False, "message": "Please enter a valid email address."}), 400
 
-    # For standard registration (non-google), validate password & email OTP
+    # For standard registration (non-google), validate password
     if not is_google:
-        # If an OTP was issued for this email, verify it
-        otp_info = EMAIL_VERIFICATION_OTPS.get(email)
-        if otp_info:
-            if not otp:
-                return jsonify({"success": False, "message": "Please enter the 6-digit email verification code."}), 400
-            if time.time() > otp_info.get('expires_at', 0):
-                EMAIL_VERIFICATION_OTPS.pop(email, None)
-                return jsonify({"success": False, "message": "Email verification code has expired. Please request a new code."}), 400
-            if str(otp_info.get('otp', '')).strip() != str(otp).strip():
-                return jsonify({"success": False, "message": "Invalid 6-digit email verification code."}), 400
-            # OTP verified successfully - clear from store
-            EMAIL_VERIFICATION_OTPS.pop(email, None)
-
         if not password:
             return jsonify({"success": False, "message": "Password is required."}), 400
         if password != confirm_password:
