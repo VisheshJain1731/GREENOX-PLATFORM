@@ -4,3 +4,5 @@ cloudflared.exe
 tunnel.log
 *.log
 .gemini/
+.env
+

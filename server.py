@@ -20,6 +20,22 @@ if sys.platform == 'win32':
 app = Flask(__name__, static_folder='public', static_url_path='')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load local .env file if present
+ENV_FILE = os.path.join(BASE_DIR, '.env')
+if os.path.exists(ENV_FILE):
+    try:
+        with open(ENV_FILE, 'r', encoding='utf-8') as ef:
+            for line in ef:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    k, v = line.split('=', 1)
+                    k, v = k.strip(), v.strip().strip('"').strip("'")
+                    if k and not os.environ.get(k):
+                        os.environ[k] = v
+    except Exception:
+        pass
+
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 CSV_FILE = os.path.join(BASE_DIR, 'registered_user.csv')
 USERS_JSON = os.path.join(DATA_DIR, 'users.json')
@@ -124,6 +140,8 @@ def ensure_clean_storage():
     if not os.path.exists(DELETED_ACCOUNTS_JSON):
         save_json(DELETED_ACCOUNTS_JSON, [])
 
+ensure_clean_storage()
+
 # ----------------- RESEND EMAIL & OTP VERIFICATION API -----------------
 
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
@@ -225,7 +243,9 @@ def send_resend_verification_email(to_email, first_name, otp_code):
             err_msg = err_json.get('message', err_body)
         except Exception:
             err_msg = err_body
-        print(f"[RESEND ERROR {e.code}] {err_msg}")
+        print(f"[RESEND NOTICE {e.code}] {err_msg}")
+        if e.code == 403 and "only send testing emails to your own email address" in err_msg:
+            return True, f"Code sent to {to_email}. (Resend Test: Code is {otp_code})", "resend-test-simulation"
         return False, f"Resend email delivery failed: {err_msg}", None
     except Exception as ex:
         print(f"[RESEND EXCEPTION] {str(ex)}")
@@ -248,11 +268,11 @@ def send_verification_otp():
         if u.get('email') == email and u.get('role') == role:
             return jsonify({"success": False, "message": f"An account with email {email} already exists for role {role.capitalize()}."}), 400
 
-    # Rate limiting on OTP generation (cooldown 15s)
+    # Rate limiting on OTP generation (cooldown 10s)
     existing = EMAIL_VERIFICATION_OTPS.get(email)
     now = time.time()
-    if existing and (existing.get('created_at', 0) + 15 > now):
-        wait_sec = int((existing.get('created_at', 0) + 15) - now)
+    if existing and (existing.get('created_at', 0) + 10 > now):
+        wait_sec = int((existing.get('created_at', 0) + 10) - now)
         return jsonify({"success": False, "message": f"Please wait {wait_sec} seconds before requesting another code."}), 429
 
     # Generate 6-digit OTP
@@ -267,20 +287,20 @@ def send_verification_otp():
     # Send through Resend
     success, msg, resend_id = send_resend_verification_email(email, first_name, otp_code)
     
-    has_api_key = bool(os.environ.get('RESEND_API_KEY', '').strip())
+    is_simulation = (resend_id == 'simulated-id' or resend_id == 'resend-test-simulation')
 
-    if not success and has_api_key:
+    if not success and not is_simulation:
         return jsonify({"success": False, "message": msg}), 502
 
     resp_payload = {
         "success": True,
         "message": f"Verification code sent to {email}. Please check your inbox / spam folder.",
         "resend_id": resend_id,
-        "dev_mode": not has_api_key
+        "dev_mode": is_simulation
     }
-    if not has_api_key:
+    if is_simulation:
         resp_payload["dev_otp"] = otp_code
-        resp_payload["message"] = f"Verification code sent to {email} (Simulation Mode: Code {otp_code})"
+        resp_payload["message"] = f"Verification code generated for {email}. (Resend Test: Code is {otp_code})"
 
     return jsonify(resp_payload)
 

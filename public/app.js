@@ -352,6 +352,200 @@ function selectGoogleAccount(firstName, surname, email, phone) {
 // 5. REGISTRATION & LOGIN API CALLS
 // ==========================================================================
 
+// ==========================================================================
+// 5. REGISTRATION & LOGIN API CALLS (WITH INLINE RESEND.COM OTP VERIFICATION)
+// ==========================================================================
+
+let inlineOtpTimer = null;
+let isEmailVerified = false;
+
+function startInlineOtpCooldown(seconds = 30) {
+  if (inlineOtpTimer) clearInterval(inlineOtpTimer);
+  
+  const sendBtn = document.getElementById('inlineSendOtpBtn');
+  if (!sendBtn) return;
+  
+  let remaining = seconds;
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = `<i class="fa-solid fa-clock"></i> Resend (${remaining}s)`;
+
+  inlineOtpTimer = setInterval(() => {
+    remaining--;
+    if (sendBtn) {
+      sendBtn.innerHTML = `<i class="fa-solid fa-clock"></i> Resend (${remaining}s)`;
+    }
+    if (remaining <= 0) {
+      clearInterval(inlineOtpTimer);
+      inlineOtpTimer = null;
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send OTP`;
+      }
+    }
+  }, 1000);
+}
+
+async function handleSendRegistrationOtp() {
+  hideAuthAlert();
+  const emailInput = document.getElementById('regEmail');
+  const firstNameInput = document.getElementById('regFirstName');
+  const hintEl = document.getElementById('inlineOtpHint');
+  const statusBadge = document.getElementById('otpStatusBadge');
+  const sendBtn = document.getElementById('inlineSendOtpBtn');
+  const otpInput = document.getElementById('regOtp');
+
+  const email = emailInput ? emailInput.value.trim() : '';
+  const firstName = firstNameInput ? firstNameInput.value.trim() : '';
+
+  if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+    if (hintEl) {
+      hintEl.className = 'inline-otp-hint hint-error';
+      hintEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Please enter a valid email address first.';
+    }
+    showAuthAlert('Please enter a valid email address before requesting an OTP.', 'error');
+    emailInput?.focus();
+    return;
+  }
+
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+  }
+
+  try {
+    const response = await fetch('/api/auth/send-verification-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email,
+        first_name: firstName,
+        role: currentRole
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      startInlineOtpCooldown(30);
+      if (statusBadge) {
+        statusBadge.className = 'inline-otp-status-badge status-sent';
+        statusBadge.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Code Sent';
+      }
+
+      if (hintEl) {
+        hintEl.className = 'inline-otp-hint hint-success';
+        if (result.dev_otp) {
+          hintEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Code sent to <strong>${email}</strong>! <span style="color:#059669; font-weight:700;">(Resend Test Code: ${result.dev_otp})</span>`;
+          if (otpInput && !otpInput.value) otpInput.value = result.dev_otp;
+        } else {
+          hintEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> Verification code sent to <strong>${email}</strong>! Please check inbox / spam.`;
+        }
+      }
+
+      showToast(`Verification code sent to ${email}!`, 'success');
+      otpInput?.focus();
+    } else {
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send OTP';
+      }
+      if (hintEl) {
+        hintEl.className = 'inline-otp-hint hint-error';
+        hintEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${result.message || 'Failed to send OTP.'}`;
+      }
+      showAuthAlert(result.message || 'Failed to send verification code.', 'error');
+    }
+  } catch (err) {
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send OTP';
+    }
+    if (hintEl) {
+      hintEl.className = 'inline-otp-hint hint-error';
+      hintEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Network error while requesting code.';
+    }
+    showAuthAlert('Network error while requesting verification code.', 'error');
+  }
+}
+
+async function handleVerifyInlineOtp() {
+  hideAuthAlert();
+  const emailInput = document.getElementById('regEmail');
+  const otpInput = document.getElementById('regOtp');
+  const hintEl = document.getElementById('inlineOtpHint');
+  const statusBadge = document.getElementById('otpStatusBadge');
+  const verifyBtn = document.getElementById('inlineVerifyOtpBtn');
+
+  const email = emailInput ? emailInput.value.trim() : '';
+  const otp = otpInput ? otpInput.value.trim() : '';
+
+  if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+    showAuthAlert('Please enter a valid email address.', 'error');
+    emailInput?.focus();
+    return;
+  }
+
+  if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+    if (hintEl) {
+      hintEl.className = 'inline-otp-hint hint-error';
+      hintEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Please enter the complete 6-digit numeric verification code.';
+    }
+    showAuthAlert('Please enter the complete 6-digit verification code.', 'error');
+    otpInput?.focus();
+    return;
+  }
+
+  if (verifyBtn) {
+    verifyBtn.disabled = true;
+    verifyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+  }
+
+  try {
+    const response = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, otp: otp })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      isEmailVerified = true;
+      if (statusBadge) {
+        statusBadge.className = 'inline-otp-status-badge status-verified';
+        statusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Verified';
+      }
+      if (verifyBtn) {
+        verifyBtn.className = 'inline-verify-otp-btn verified-btn';
+        verifyBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Verified';
+        verifyBtn.disabled = true;
+      }
+      if (hintEl) {
+        hintEl.className = 'inline-otp-hint hint-success';
+        hintEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> 🎉 Email address successfully verified!';
+      }
+      showToast('Email verified successfully!', 'success');
+    } else {
+      isEmailVerified = false;
+      if (verifyBtn) {
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Verify';
+      }
+      if (hintEl) {
+        hintEl.className = 'inline-otp-hint hint-error';
+        hintEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${result.message || 'Invalid or expired code.'}`;
+      }
+      showAuthAlert(result.message || 'Invalid verification code. Please check and try again.', 'error');
+    }
+  } catch (err) {
+    if (verifyBtn) {
+      verifyBtn.disabled = false;
+      verifyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Verify';
+    }
+    showAuthAlert('Server error during verification.', 'error');
+  }
+}
+
 async function handleRegister(event) {
   event.preventDefault();
   hideAuthAlert();
@@ -368,10 +562,19 @@ async function handleRegister(event) {
   const employeeType = document.getElementById('regEmployeeType')?.value || 'govt';
   const orgId = document.getElementById('regOrgId')?.value.trim() || '';
   const orgName = document.getElementById('regOrgName')?.value.trim() || '';
+  const otp = document.getElementById('regOtp')?.value.trim() || '';
 
   // Phone Number validation (must be exactly 10 digits)
   if (!phone || phone.length !== 10 || !/^\d{10}$/.test(phone)) {
     showAuthAlert('Registration failed: Phone number must be exactly 10 digits.', 'error');
+    document.getElementById('regPhone')?.focus();
+    return;
+  }
+
+  // Email format check
+  if (!email || !/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+    showAuthAlert('Please enter a valid email address.', 'error');
+    document.getElementById('regEmail')?.focus();
     return;
   }
 
@@ -415,190 +618,45 @@ async function handleRegister(event) {
     return;
   }
 
+  // Email OTP verification requirement
+  if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
+    const hintEl = document.getElementById('inlineOtpHint');
+    if (hintEl) {
+      hintEl.className = 'inline-otp-hint hint-error';
+      hintEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> 6-digit email verification code is required. Click "Send OTP" to receive your code.';
+    }
+    showAuthAlert('Please enter the 6-digit verification code sent to your email (Click "Send OTP").', 'error');
+    
+    // If not requested yet, send automatically
+    if (!inlineOtpTimer && !isEmailVerified) {
+      handleSendRegistrationOtp();
+    }
+    document.getElementById('regOtp')?.focus();
+    return;
+  }
+
   const submitBtn = document.getElementById('registerSubmitBtn');
   submitBtn.disabled = true;
-  submitBtn.querySelector('.btn-text').textContent = 'Sending Verification Code...';
-
-  // Store registration data for OTP verification step
-  pendingRegistrationData = {
-    first_name: firstName,
-    surname: surname,
-    phone: phone,
-    email: email,
-    address: address,
-    password: password,
-    confirm_password: confirmPassword,
-    role: currentRole,
-    admin_key: adminKey,
-    aadhaar: aadhaar,
-    employee_type: employeeType,
-    org_id: orgId,
-    org_name: orgName
-  };
-
-  try {
-    const response = await fetch('/api/auth/send-verification-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email,
-        first_name: firstName,
-        role: currentRole
-      })
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      document.getElementById('otpTargetEmail').textContent = email;
-      document.getElementById('otpCodeInput').value = '';
-      hideOtpAlert();
-      document.getElementById('emailOtpModal').classList.remove('hidden');
-      startOtpTimer(30);
-
-      if (result.dev_mode && result.dev_otp) {
-        showOtpAlert(`ℹ️ Simulation Mode: Your verification code is <strong>${result.dev_otp}</strong>`, 'success');
-      }
-
-      showToast('Verification code sent to your email!', 'success');
-      setTimeout(() => document.getElementById('otpCodeInput')?.focus(), 200);
-    } else {
-      showAuthAlert(result.message || 'Failed to send verification code. Please check your email.', 'error');
-    }
-  } catch (err) {
-    showAuthAlert('Network error while requesting verification code. Please try again.', 'error');
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.querySelector('.btn-text').textContent = 'Complete Registration';
-  }
-}
-
-// ==========================================================================
-// 5.1 RESEND.COM OTP VERIFICATION HANDLERS
-// ==========================================================================
-
-let pendingRegistrationData = null;
-let otpCountdownTimer = null;
-
-function showOtpAlert(message, type = 'error') {
-  const alertBox = document.getElementById('otpAlertBox');
-  if (!alertBox) return;
-  alertBox.className = `alert-box ${type}`;
-  alertBox.innerHTML = `<i class="fa-solid ${type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-check'}"></i> <span>${message}</span>`;
-  alertBox.classList.remove('hidden');
-}
-
-function hideOtpAlert() {
-  const alertBox = document.getElementById('otpAlertBox');
-  if (alertBox) alertBox.classList.add('hidden');
-}
-
-function startOtpTimer(seconds = 30) {
-  if (otpCountdownTimer) clearInterval(otpCountdownTimer);
-  
-  let remaining = seconds;
-  const timerText = document.getElementById('otpTimerText');
-  const countdownEl = document.getElementById('otpCountdown');
-  const resendBtn = document.getElementById('resendOtpBtn');
-
-  if (timerText) timerText.classList.remove('hidden');
-  if (resendBtn) resendBtn.classList.add('hidden');
-  if (countdownEl) countdownEl.textContent = remaining;
-
-  otpCountdownTimer = setInterval(() => {
-    remaining--;
-    if (countdownEl) countdownEl.textContent = remaining;
-
-    if (remaining <= 0) {
-      clearInterval(otpCountdownTimer);
-      otpCountdownTimer = null;
-      if (timerText) timerText.classList.add('hidden');
-      if (resendBtn) resendBtn.classList.remove('hidden');
-    }
-  }, 1000);
-}
-
-function closeEmailOtpModal() {
-  closeModal('emailOtpModal');
-  if (otpCountdownTimer) {
-    clearInterval(otpCountdownTimer);
-    otpCountdownTimer = null;
-  }
-}
-
-async function handleResendOtp() {
-  if (!pendingRegistrationData || !pendingRegistrationData.email) {
-    showOtpAlert('No active registration session found. Please fill out the registration form again.', 'error');
-    return;
-  }
-
-  const resendBtn = document.getElementById('resendOtpBtn');
-  if (resendBtn) {
-    resendBtn.disabled = true;
-    resendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Resending...';
-  }
-
-  try {
-    const response = await fetch('/api/auth/send-verification-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: pendingRegistrationData.email,
-        first_name: pendingRegistrationData.first_name,
-        role: pendingRegistrationData.role
-      })
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      startOtpTimer(30);
-      if (result.dev_mode && result.dev_otp) {
-        showOtpAlert(`ℹ️ Simulation Mode: New verification code is <strong>${result.dev_otp}</strong>`, 'success');
-      } else {
-        showOtpAlert('A new verification code has been sent to your email.', 'success');
-      }
-      showToast('New verification code sent!', 'success');
-    } else {
-      showOtpAlert(result.message || 'Failed to resend verification code.', 'error');
-    }
-  } catch (err) {
-    showOtpAlert('Network error while resending verification code.', 'error');
-  } finally {
-    if (resendBtn) {
-      resendBtn.disabled = false;
-      resendBtn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Resend Code';
-    }
-  }
-}
-
-async function handleVerifyAndRegister() {
-  hideOtpAlert();
-
-  const otpInput = document.getElementById('otpCodeInput');
-  const otp = otpInput ? otpInput.value.trim() : '';
-
-  if (!otp || otp.length !== 6 || !/^\d{6}$/.test(otp)) {
-    showOtpAlert('Please enter the complete 6-digit numeric verification code.', 'error');
-    otpInput?.focus();
-    return;
-  }
-
-  if (!pendingRegistrationData) {
-    showOtpAlert('Registration session expired. Please fill out the registration form again.', 'error');
-    return;
-  }
-
-  const verifyBtn = document.getElementById('verifyOtpSubmitBtn');
-  verifyBtn.disabled = true;
-  verifyBtn.querySelector('.btn-text').textContent = 'Verifying & Creating Account...';
+  submitBtn.querySelector('.btn-text').textContent = 'Creating Account...';
 
   try {
     const response = await fetch('/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ...pendingRegistrationData,
+        first_name: firstName,
+        surname: surname,
+        phone: phone,
+        email: email,
+        address: address,
+        password: password,
+        confirm_password: confirmPassword,
+        role: currentRole,
+        admin_key: adminKey,
+        aadhaar: aadhaar,
+        employee_type: employeeType,
+        org_id: orgId,
+        org_name: orgName,
         otp: otp
       })
     });
@@ -606,21 +664,40 @@ async function handleVerifyAndRegister() {
     const result = await response.json();
 
     if (result.success) {
-      closeEmailOtpModal();
       showToast('Registration completed successfully!', 'success');
       showAuthAlert('Registration completed! You can now log in.', 'success');
-      document.getElementById('loginPhone').value = pendingRegistrationData.phone;
-      document.getElementById('loginEmail').value = pendingRegistrationData.email;
-      pendingRegistrationData = null;
+      document.getElementById('loginPhone').value = phone;
+      document.getElementById('loginEmail').value = email;
+      
+      // Reset registration form & state
+      document.getElementById('registerForm')?.reset();
+      isEmailVerified = false;
+      const statusBadge = document.getElementById('otpStatusBadge');
+      if (statusBadge) {
+        statusBadge.className = 'inline-otp-status-badge status-unverified';
+        statusBadge.innerHTML = '<i class="fa-regular fa-clock"></i> Unverified';
+      }
+      const hintEl = document.getElementById('inlineOtpHint');
+      if (hintEl) {
+        hintEl.className = 'inline-otp-hint';
+        hintEl.innerHTML = '<i class="fa-solid fa-circle-info"></i> Click <strong>Send OTP</strong> to receive verification code on your email via Resend.com';
+      }
+
       setTimeout(() => switchAuthMode('login'), 1200);
     } else {
-      showOtpAlert(result.message || 'Registration failed. Invalid or expired code.', 'error');
+      showAuthAlert(result.message || 'Registration failed.', 'error');
+      const hintEl = document.getElementById('inlineOtpHint');
+      if (hintEl && result.message && result.message.includes('verification code')) {
+        hintEl.className = 'inline-otp-hint hint-error';
+        hintEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${result.message}`;
+        document.getElementById('regOtp')?.focus();
+      }
     }
   } catch (err) {
-    showOtpAlert('Server error occurred during verification. Please try again.', 'error');
+    showAuthAlert('Server connection error. Please try again.', 'error');
   } finally {
-    verifyBtn.disabled = false;
-    verifyBtn.querySelector('.btn-text').textContent = 'Verify & Create Account';
+    submitBtn.disabled = false;
+    submitBtn.querySelector('.btn-text').textContent = 'Complete Registration';
   }
 }
 

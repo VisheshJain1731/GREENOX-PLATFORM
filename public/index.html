@@ -209,6 +209,36 @@
             </div>
           </div>
 
+          <!-- Inline Email OTP Verification Block (Directly on registration form) -->
+          <div class="inline-otp-card" id="inlineOtpSection">
+            <div class="inline-otp-header">
+              <div class="inline-otp-title">
+                <i class="fa-solid fa-envelope-circle-check text-green"></i>
+                <span>Email Verification Code (Resend.com)</span>
+              </div>
+              <span class="inline-otp-status-badge status-unverified" id="otpStatusBadge">
+                <i class="fa-regular fa-clock"></i> Unverified
+              </span>
+            </div>
+            <div class="inline-otp-body">
+              <div class="inline-otp-input-wrap">
+                <input type="text" id="regOtp" class="inline-otp-input" maxlength="6" placeholder="Enter 6-digit OTP code" inputmode="numeric" autocomplete="one-time-code" />
+                <button type="button" class="inline-send-otp-btn" id="inlineSendOtpBtn" onclick="handleSendRegistrationOtp()">
+                  <i class="fa-solid fa-paper-plane"></i>
+                  <span>Send OTP</span>
+                </button>
+                <button type="button" class="inline-verify-otp-btn" id="inlineVerifyOtpBtn" onclick="handleVerifyInlineOtp()">
+                  <i class="fa-solid fa-check"></i>
+                  <span>Verify</span>
+                </button>
+              </div>
+              <div class="inline-otp-hint" id="inlineOtpHint">
+                <i class="fa-solid fa-circle-info"></i> Click <strong>Send OTP</strong> to receive verification code on your email via Resend.com
+              </div>
+            </div>
+          </div>
+
+
           <!-- EMPLOYEE SPECIAL FIELDS (Aadhaar 10 digits & Govt/Private Selector) -->
           <div class="employee-extra-fields hidden" id="employeeExtraFields">
             <div class="form-row">
@@ -2047,56 +2077,6 @@
       </div>
       <div class="modal-footer justify-center">
         <button type="button" class="primary-btn" onclick="closeModal('orgRecycleNoticeModal')">Understood</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ====================================================
-       MODAL: RESEND.COM EMAIL OTP VERIFICATION DIALOG
-  ==================================================== -->
-  <div id="emailOtpModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'emailOtpModal')">
-    <div class="modal-card modal-small-dim otp-verification-card">
-      <div class="modal-header">
-        <div class="modal-title-wrap">
-          <div class="modal-icon-badge text-green"><i class="fa-solid fa-envelope-circle-check"></i></div>
-          <div>
-            <h3>Verify Your Email</h3>
-            <span class="modal-sub">Enter the 6-digit code sent to your email address</span>
-          </div>
-        </div>
-        <button type="button" class="modal-close-btn" onclick="closeEmailOtpModal()"><i
-            class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="modal-body otp-modal-body">
-        <div class="otp-email-badge">
-          <i class="fa-solid fa-envelope"></i>
-          <span id="otpTargetEmail">user@example.com</span>
-        </div>
-
-        <div id="otpAlertBox" class="alert-box hidden"></div>
-
-        <div class="otp-instruction">
-          <p>We've sent a 6-digit verification code via <strong>Resend.com</strong> to verify your account registration.</p>
-        </div>
-
-        <div class="otp-input-group">
-          <label for="otpCodeInput"><i class="fa-solid fa-key"></i> 6-Digit Verification Code</label>
-          <input type="text" id="otpCodeInput" class="otp-main-input" maxlength="6" placeholder="••••••" inputmode="numeric" autocomplete="one-time-code" onkeydown="if(event.key==='Enter'){event.preventDefault();handleVerifyAndRegister();}" />
-        </div>
-
-        <div class="otp-timer-row">
-          <span id="otpTimerText"><i class="fa-regular fa-clock"></i> Resend code in <strong id="otpCountdown">30</strong>s</span>
-          <button type="button" id="resendOtpBtn" class="link-btn hidden" onclick="handleResendOtp()">
-            <i class="fa-solid fa-rotate-right"></i> Resend Code
-          </button>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="secondary-btn" onclick="closeEmailOtpModal()">Cancel</button>
-        <button type="button" class="primary-btn submit-auth-btn" id="verifyOtpSubmitBtn" onclick="handleVerifyAndRegister()">
-          <i class="fa-solid fa-check-double"></i>
-          <span class="btn-text">Verify & Create Account</span>
-        </button>
       </div>
     </div>
   </div>
