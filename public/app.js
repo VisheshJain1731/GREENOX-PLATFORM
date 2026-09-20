@@ -549,6 +549,9 @@ function checkExistingSession() {
 // 6. DEDICATED PORTAL ROUTING (ADMIN, EMPLOYEE, ORG, CITIZEN)
 // ==========================================================================
 
+let currentGovtEmpTab = 'available';
+let selectedCompletePhotoBase64 = '';
+
 function transitionToDashboard(user) {
   closeAuthModal();
   // Hide all view pages first
@@ -564,23 +567,50 @@ function transitionToDashboard(user) {
     document.getElementById('adminDashboardPage').classList.add('active');
     document.getElementById('adminTopbarName').textContent = `${user.first_name} ${user.surname} (Admin)`;
     loadAdminData();
+    startSessionStatusPolling();
     return;
   }
 
   // 2. EMPLOYEE DASHBOARD (GOVT vs PRIVATE)
   if (user.role === 'employee') {
     document.getElementById('employeeDashboardPage').classList.add('active');
-    document.getElementById('employeeTopName').textContent = `${user.first_name} ${user.surname}`;
+    const fullName = `${user.first_name} ${user.surname}`.trim();
+    document.getElementById('employeeTopName').textContent = fullName;
+    
+    // Set Profile popover details
+    const empFullNameEl = document.getElementById('empProfileFullName');
+    if (empFullNameEl) empFullNameEl.textContent = fullName;
 
     const empType = (user.employee_type || 'govt').toLowerCase();
     const isGovt = empType === 'govt';
+    const roleText = isGovt ? 'Govt Municipal Employee' : 'Private Eco-Clean Squad';
 
-    document.getElementById('employeeTypeBadge').textContent = isGovt ? 'Govt Municipal Employee' : 'Private Eco-Clean Squad';
+    document.getElementById('employeeTypeBadge').textContent = isGovt ? 'Govt Employee' : 'Private Squad';
     document.getElementById('empNavbarBadge').textContent = isGovt ? 'Municipal Task Portal' : 'Private Operations Portal';
+    
+    const empRoleTag = document.getElementById('empProfileRoleTag');
+    if (empRoleTag) empRoleTag.textContent = roleText;
+
+    const empPhoneTag = document.getElementById('empProfilePhoneTag');
+    if (empPhoneTag) empPhoneTag.innerHTML = `<i class="fa-solid fa-phone"></i> ${user.phone}`;
+
+    const empEmailTag = document.getElementById('empProfileEmailTag');
+    if (empEmailTag) empEmailTag.innerHTML = `<i class="fa-solid fa-envelope"></i> ${user.email}`;
+
+    const empAadhaarTag = document.getElementById('empProfileAadhaarTag');
+    if (empAadhaarTag) empAadhaarTag.textContent = user.aadhaar ? `Aadhaar: ${user.aadhaar}` : (user.org_id ? `Org ID: ${user.org_id}` : 'Official Identity Verified');
+
+    const avatarSeed = encodeURIComponent(user.first_name + (user.surname || ''));
+    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}&backgroundColor=d1fae5`;
+    const empAvatarImg = document.getElementById('empAvatarImg');
+    const empPopoverAvatarImg = document.getElementById('empPopoverAvatarImg');
+    if (empAvatarImg) empAvatarImg.src = avatarUrl;
+    if (empPopoverAvatarImg) empPopoverAvatarImg.src = avatarUrl;
 
     if (isGovt) {
       document.getElementById('govtEmployeeView').classList.remove('hidden');
       document.getElementById('privateEmployeeView').classList.add('hidden');
+      switchGovtEmpTab('available');
     } else {
       document.getElementById('govtEmployeeView').classList.add('hidden');
       document.getElementById('privateEmployeeView').classList.remove('hidden');
@@ -589,6 +619,7 @@ function transitionToDashboard(user) {
     }
 
     loadEmployeeData();
+    startSessionStatusPolling();
     return;
   }
 
@@ -597,12 +628,13 @@ function transitionToDashboard(user) {
     document.getElementById('organizationDashboardPage').classList.add('active');
     document.getElementById('orgTopName').textContent = user.org_name || `${user.first_name} ${user.surname}`;
     document.getElementById('orgIdBadge').textContent = user.org_id || 'ORG-ENTERPRISE';
+    startSessionStatusPolling();
     return;
   }
 
   // 4. CITIZEN DASHBOARD
   document.getElementById('mainDashboardPage').classList.add('active');
-  const fullName = `${user.first_name} ${user.surname}`;
+  const fullName = `${user.first_name} ${user.surname}`.trim();
   document.getElementById('profileFullName').textContent = fullName;
   document.getElementById('profileRoleTag').textContent = user.role.toUpperCase();
   document.getElementById('profilePhoneTag').innerHTML = `<i class="fa-solid fa-phone"></i> ${user.phone}`;
@@ -653,9 +685,74 @@ function handleLogout(customMessage) {
   document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
   document.getElementById('authPage').classList.add('active');
   closeProfileMenu();
+  closeEmployeeProfileMenu();
   showToast(customMessage || 'Logged out successfully.', 'info');
   if (customMessage) {
     showAuthAlert(customMessage, 'error');
+  }
+}
+
+// Employee Profile Dropdown Controllers
+function toggleEmployeeProfileMenu() {
+  const popover = document.getElementById('employeeProfilePopover');
+  if (popover) popover.classList.toggle('hidden');
+}
+
+function closeEmployeeProfileMenu() {
+  const popover = document.getElementById('employeeProfilePopover');
+  if (popover) popover.classList.add('hidden');
+}
+
+// Permanent Account Deletion Modal Handlers
+function openEmployeeDeleteModal() {
+  closeEmployeeProfileMenu();
+  const alertBox = document.getElementById('empDeleteAlert');
+  if (alertBox) alertBox.classList.add('hidden');
+  const pwdInput = document.getElementById('empDeletePassword');
+  if (pwdInput) pwdInput.value = '';
+  document.getElementById('employeeDeleteModal').classList.remove('hidden');
+}
+
+async function submitEmployeePermanentDelete(event) {
+  event.preventDefault();
+  if (!currentUser) return;
+
+  const password = document.getElementById('empDeletePassword').value;
+  const alertBox = document.getElementById('empDeleteAlert');
+  alertBox.classList.add('hidden');
+
+  const submitBtn = document.getElementById('empConfirmDeleteBtn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying & Archiving...';
+
+  try {
+    const res = await fetch('/api/employee/delete-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        phone: currentUser.phone,
+        password: password,
+        role: currentUser.role
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      closeModal('employeeDeleteModal');
+      handleLogout('Your employee account has been permanently deleted. Performance record & statistics archived into Admin panel.');
+    } else {
+      alertBox.className = 'alert-box error';
+      alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>${data.message || 'Deletion failed. Incorrect password.'}</span>`;
+      alertBox.classList.remove('hidden');
+    }
+  } catch (err) {
+    alertBox.className = 'alert-box error';
+    alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Network error. Please try again.</span>`;
+    alertBox.classList.remove('hidden');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i> Permanently Delete My Account';
   }
 }
 
@@ -663,23 +760,57 @@ function handleLogout(customMessage) {
 // 7. EMPLOYEE PORTAL DATA & LOGIC (GOVT & PRIVATE SEPARATION)
 // ==========================================================================
 
+function switchGovtEmpTab(tab) {
+  currentGovtEmpTab = tab;
+  document.querySelectorAll('.g-emp-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.g-emp-sub-section').forEach(s => s.classList.add('hidden'));
+
+  if (tab === 'available') {
+    document.getElementById('gTabAvailableBtn')?.classList.add('active');
+    document.getElementById('govtAvailableSection')?.classList.remove('hidden');
+  } else if (tab === 'accepted') {
+    document.getElementById('gTabAcceptedBtn')?.classList.add('active');
+    document.getElementById('govtAcceptedSection')?.classList.remove('hidden');
+  } else {
+    document.getElementById('gTabSolvedBtn')?.classList.add('active');
+    document.getElementById('govtSolvedSection')?.classList.remove('hidden');
+  }
+}
+
 async function loadEmployeeData() {
   if (!currentUser || currentUser.role !== 'employee') return;
   const empType = (currentUser.employee_type || 'govt').toLowerCase();
+  const empName = `${currentUser.first_name} ${currentUser.surname}`.trim();
 
   try {
-    const res = await fetch(`/api/employee/data?type=${empType}`);
+    const res = await fetch(`/api/employee/data?type=${empType}&email=${encodeURIComponent(currentUser.email)}&phone=${encodeURIComponent(currentUser.phone)}&name=${encodeURIComponent(empName)}`);
     const data = await res.json();
 
     if (data.success) {
       if (empType === 'govt') {
-        renderGovtTasks(data.pending_tasks || []);
-        document.getElementById('govtPendingCount').textContent = `${(data.pending_tasks || []).length} Pending`;
+        renderGovtAvailableTasks(data.available_tasks || []);
+        renderGovtAcceptedTasks(data.my_accepted_tasks || []);
+        renderGovtSolvedTasks(data.my_solved_tasks || []);
+
+        const availCount = (data.available_tasks || []).length;
+        const acceptCount = (data.my_accepted_tasks || []).length;
+        const solvedCount = (data.my_solved_tasks || []).length;
+
+        document.getElementById('govtPendingCount').textContent = `${availCount} Available`;
+        document.getElementById('govtAvailableCount').textContent = availCount;
+        document.getElementById('govtAcceptedCount').textContent = acceptCount;
+        document.getElementById('govtSolvedCount').textContent = solvedCount;
+
+        const statSolvedEl = document.getElementById('empProfileSolvedCount');
+        if (statSolvedEl) statSolvedEl.textContent = solvedCount;
       } else {
-        renderPrivateBookings(data.pending_tasks || []);
+        renderPrivateBookings(data.available_bookings || data.pending_tasks || []);
         renderPrivateEmergencies(data.emergencies || []);
-        document.getElementById('privateBookingsBadge').textContent = (data.pending_tasks || []).length;
+        document.getElementById('privateBookingsBadge').textContent = (data.available_bookings || data.pending_tasks || []).length;
         document.getElementById('privateEmergenciesBadge').textContent = (data.emergencies || []).length;
+        
+        const statSolvedEl = document.getElementById('empProfileSolvedCount');
+        if (statSolvedEl) statSolvedEl.textContent = data.solved_count || 0;
       }
     }
   } catch (err) {
@@ -687,12 +818,14 @@ async function loadEmployeeData() {
   }
 }
 
-function renderGovtTasks(tasks) {
-  const tbody = document.getElementById('govtTasksTableBody');
+// 1. Available Pending Tasks (Has "Accept the Task" button)
+function renderGovtAvailableTasks(tasks) {
+  const tbody = document.getElementById('govtAvailableTableBody');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
   if (!tasks || tasks.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-circle-check text-green"></i> All municipal waste tasks are currently cleared!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-circle-check text-green"></i> No pending unassigned municipal tasks at the moment. All caught up!</td></tr>`;
     return;
   }
 
@@ -706,13 +839,217 @@ function renderGovtTasks(tasks) {
       <td>${t.reporter_name}<br><small>${t.reporter_phone}</small></td>
       <td><span class="status-tag status-pending">${t.status}</span></td>
       <td>
-        <button class="tbl-btn tbl-btn-resolve" onclick="openResolveTaskModal('${t.id}')">
-          <i class="fa-solid fa-check"></i> Mark Cleaned & Resolve
+        <button class="tbl-btn tbl-btn-accept" onclick="acceptEmployeeTask('${t.id}')">
+          <i class="fa-solid fa-hand-holding-hand"></i> Accept the Task
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+// 2. My Accepted Tasks (Has "Task Completion" button)
+function renderGovtAcceptedTasks(tasks) {
+  const tbody = document.getElementById('govtAcceptedTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!tasks || tasks.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-list-check text-muted"></i> You have not accepted any active tasks. Click "Accept the Task" in the Available tab to start work.</td></tr>`;
+    return;
+  }
+
+  tasks.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${t.id}</strong></td>
+      <td><strong>${t.headline}</strong><br><small class="text-muted">${t.address}</small></td>
+      <td><span class="badge-pill">${t.waste_type}</span></td>
+      <td><img src="${t.photo}" alt="Proof" class="table-photo-thumb" /></td>
+      <td>${t.reporter_name}<br><small><i class="fa-solid fa-phone"></i> ${t.reporter_phone}</small></td>
+      <td><small class="text-gold"><i class="fa-regular fa-clock"></i> ${t.accepted_at || t.assigned_at || 'Recently'}</small></td>
+      <td>
+        <button class="tbl-btn tbl-btn-resolve" onclick="openCompleteTaskModal('${t.id}', '${encodeURIComponent(t.headline || t.address)}', '${t.waste_type}')">
+          <i class="fa-solid fa-circle-check"></i> Task Completion
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// 3. My Solved Tasks History
+function renderGovtSolvedTasks(tasks) {
+  const tbody = document.getElementById('govtSolvedTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!tasks || tasks.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-clock-rotate-left text-muted"></i> No completed task records yet. Complete accepted tasks to build your verified resolution record!</td></tr>`;
+    return;
+  }
+
+  tasks.forEach(t => {
+    const afterPhotoSrc = t.resolved_after_photo || 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=400&q=80';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <strong>${t.id}</strong><br>
+        <small class="text-muted"><i class="fa-regular fa-clock"></i> ${t.resolved_at || 'Recently'}</small>
+      </td>
+      <td><strong>${t.headline}</strong><br><small class="text-muted">${t.address}</small></td>
+      <td><span class="badge-pill">${t.waste_type}</span></td>
+      <td>
+        <div class="solved-photos-pair">
+          <div class="photo-thumb-wrap" title="Before Cleaning">
+            <span class="photo-badge before">Before</span>
+            <img src="${t.photo}" alt="Before" class="table-photo-thumb" />
+          </div>
+          <div class="photo-thumb-wrap" title="After Cleaning">
+            <span class="photo-badge after">After</span>
+            <img src="${afterPhotoSrc}" alt="After" class="table-photo-thumb" />
+          </div>
+        </div>
+      </td>
+      <td><strong class="text-main">${t.resolved_time_consumed || '30 mins'}</strong></td>
+      <td>${t.reporter_name}<br><small>${t.reporter_phone}</small></td>
+      <td><span class="status-tag status-resolved"><i class="fa-solid fa-check-double"></i> Cleaned</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// Accept Task API Trigger
+async function acceptEmployeeTask(taskId) {
+  if (!currentUser) return;
+  const fullName = `${currentUser.first_name} ${currentUser.surname}`.trim();
+
+  try {
+    const res = await fetch('/api/employee/accept-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: taskId,
+        employee_name: fullName,
+        employee_email: currentUser.email,
+        employee_phone: currentUser.phone
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(`✅ Task #${taskId} accepted! Moved to "My Accepted Tasks" tab.`, 'success');
+      loadEmployeeData();
+      switchGovtEmpTab('accepted');
+    } else {
+      showToast(data.message || 'Failed to accept task', 'error');
+    }
+  } catch (e) {
+    showToast('Network error accepting task', 'error');
+  }
+}
+
+// Task Completion Modal Controllers
+function openCompleteTaskModal(taskId, encodedHeadline = '', wasteCategory = '') {
+  document.getElementById('completeTaskId').value = taskId;
+  const headline = encodedHeadline ? decodeURIComponent(encodedHeadline) : `Task #${taskId}`;
+  document.getElementById('completeTaskHeadline').textContent = headline;
+  document.getElementById('completeTaskCategory').textContent = wasteCategory || 'Municipal Waste';
+  document.getElementById('completeTimeConsumed').value = '30 mins';
+  document.getElementById('completeNotes').value = '';
+  
+  // Set default active pill
+  setQuickDuration('30 mins');
+  removeCompletePhoto();
+
+  document.getElementById('completeTaskModal').classList.remove('hidden');
+}
+
+function setQuickDuration(durationStr) {
+  document.getElementById('completeTimeConsumed').value = durationStr;
+  document.querySelectorAll('.quick-duration-pills .duration-pill').forEach(btn => {
+    if (btn.textContent.trim() === durationStr) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function handleCompletePhotoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    selectedCompletePhotoBase64 = e.target.result;
+    document.getElementById('completePhotoPreview').src = selectedCompletePhotoBase64;
+    document.getElementById('completePhotoPreviewWrap').classList.remove('hidden');
+    showToast('After-cleaning proof photo attached!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeCompletePhoto() {
+  selectedCompletePhotoBase64 = '';
+  const wrap = document.getElementById('completePhotoPreviewWrap');
+  if (wrap) wrap.classList.add('hidden');
+  const gInput = document.getElementById('completeTaskGalleryInput');
+  const cInput = document.getElementById('completeTaskCameraInput');
+  if (gInput) gInput.value = '';
+  if (cInput) cInput.value = '';
+}
+
+async function submitEmployeeTaskCompletion(event) {
+  event.preventDefault();
+  if (!currentUser) return;
+
+  const taskId = document.getElementById('completeTaskId').value;
+  const timeConsumed = document.getElementById('completeTimeConsumed').value.trim() || '30 mins';
+  const notes = document.getElementById('completeNotes').value.trim();
+
+  if (!selectedCompletePhotoBase64) {
+    showToast('Please upload an after-cleaning proof photo to complete the task.', 'error');
+    return;
+  }
+
+  const submitBtn = document.getElementById('submitCompleteTaskBtn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting Completion...';
+
+  const fullName = `${currentUser.first_name} ${currentUser.surname}`.trim();
+
+  try {
+    const res = await fetch('/api/employee/complete-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: taskId,
+        after_photo: selectedCompletePhotoBase64,
+        time_consumed: timeConsumed,
+        notes: notes,
+        employee_name: fullName,
+        employee_email: currentUser.email,
+        employee_phone: currentUser.phone
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(`🎉 Task #${taskId} solved! +${data.awarded_points} Greenox Points awarded to citizen reporter.`, 'success');
+      closeModal('completeTaskModal');
+      removeCompletePhoto();
+      loadEmployeeData();
+      loadSolvedShowcaseFeed();
+      switchGovtEmpTab('solved');
+    } else {
+      showToast(data.message || 'Failed to complete task', 'error');
+    }
+  } catch (e) {
+    showToast('Network error completing task', 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Submit Task Completion';
+  }
 }
 
 function renderPrivateBookings(bookings) {
@@ -1198,6 +1535,7 @@ function switchAdminTab(tabName) {
   if (tabName === 'emergencies') document.getElementById('adminEmgSection')?.classList.remove('hidden');
   if (tabName === 'reports') document.getElementById('adminReportsSection')?.classList.remove('hidden');
   if (tabName === 'users') document.getElementById('adminUsersSection')?.classList.remove('hidden');
+  if (tabName === 'deleted') document.getElementById('adminDeletedSection')?.classList.remove('hidden');
 }
 
 async function loadAdminData() {
@@ -1215,6 +1553,8 @@ async function loadAdminData() {
       document.getElementById('adminStatBookings').textContent = data.bookings.length;
       document.getElementById('adminStatEmergencies').textContent = data.emergencies.length;
       document.getElementById('adminStatFalseReports').textContent = (data.reports || []).length;
+      const statDeleted = document.getElementById('adminStatDeleted');
+      if (statDeleted) statDeleted.textContent = (data.deleted_accounts || []).length;
 
       document.getElementById('adminTasksBadge').textContent = data.tasks.length;
       const solvedBadge = document.getElementById('adminSolvedBadge');
@@ -1223,6 +1563,8 @@ async function loadAdminData() {
       document.getElementById('adminEmgBadge').textContent = data.emergencies.length;
       document.getElementById('adminReportsBadge').textContent = (data.reports || []).length;
       document.getElementById('adminUsersBadge').textContent = data.users.length;
+      const deletedBadge = document.getElementById('adminDeletedBadge');
+      if (deletedBadge) deletedBadge.textContent = (data.deleted_accounts || []).length;
 
       renderAdminTasks(data.tasks);
       renderAdminSolvedHistory(solvedList);
@@ -1230,6 +1572,10 @@ async function loadAdminData() {
       renderAdminEmergencies(data.emergencies);
       renderAdminReports(data.reports || []);
       renderAdminUsers(data.users);
+      renderAdminDeletedAccounts(data.deleted_accounts || []);
+
+      // Populate employee list for task assignment
+      populateAdminEmployeeAssignSelect(data.employees || []);
     }
   } catch (err) {
     showToast('Failed to fetch admin data', 'error');
@@ -1247,16 +1593,42 @@ function renderAdminTasks(tasks) {
     let statusClass = 'status-pending';
     if (t.status === 'Resolved') statusClass = 'status-resolved';
     if (t.status === 'Closed (Heavy Load)') statusClass = 'status-closed';
+    if (t.status === 'Assigned') statusClass = 'status-progress';
+    if (t.status === 'Accepted') statusClass = 'status-confirmed';
 
     let actionHtml = '';
     if (t.status === 'Pending') {
       actionHtml = `
         <div class="admin-task-actions-row">
+          <button type="button" class="tbl-btn tbl-btn-assign" onclick="openAdminAssignModal('${t.id}', '${encodeURIComponent(t.headline || t.address)}', '${t.waste_type}')" title="Assign task to an employee">
+            <i class="fa-solid fa-user-plus"></i> Assign
+          </button>
           <button type="button" class="tbl-btn tbl-btn-resolve" onclick="openResolveTaskModal('${t.id}')">
             <i class="fa-solid fa-check"></i> Resolve
           </button>
           <button type="button" class="tbl-btn tbl-btn-close-service" onclick="adminCloseTask('${t.id}')" title="Close complaint due to heavy load">
             <i class="fa-solid fa-ban"></i> Close (Heavy Load)
+          </button>
+        </div>
+      `;
+    } else if (t.status === 'Assigned') {
+      actionHtml = `
+        <div class="admin-task-actions-row">
+          <span class="badge-pill mb-1" style="background:#fef3c7; color:#92400e; font-size:0.75rem;"><i class="fa-solid fa-user-clock"></i> Assigned: ${t.assigned_to_name || 'Staff'}</span>
+          <button type="button" class="tbl-btn tbl-btn-assign" onclick="openAdminAssignModal('${t.id}', '${encodeURIComponent(t.headline || t.address)}', '${t.waste_type}')" title="Reassign task to another employee">
+            <i class="fa-solid fa-arrows-rotate"></i> Reassign
+          </button>
+          <button type="button" class="tbl-btn tbl-btn-resolve" onclick="openResolveTaskModal('${t.id}')">
+            <i class="fa-solid fa-check"></i> Resolve
+          </button>
+        </div>
+      `;
+    } else if (t.status === 'Accepted') {
+      actionHtml = `
+        <div class="admin-task-actions-row">
+          <span class="badge-pill mb-1" style="background:#dcfce7; color:#166534; font-size:0.75rem;"><i class="fa-solid fa-user-check"></i> Accepted: ${t.accepted_by_name || 'Staff'}</span>
+          <button type="button" class="tbl-btn tbl-btn-resolve" onclick="openResolveTaskModal('${t.id}')">
+            <i class="fa-solid fa-check"></i> Resolve
           </button>
         </div>
       `;
@@ -1615,6 +1987,129 @@ async function adminDeleteUser(email, phone, role, name) {
     }
   } catch (e) {
     showToast('Network error deleting user', 'error');
+  }
+}
+
+// --------------------------------------------------------------------------
+// ADMIN: DELETED ACCOUNTS ARCHIVE TAB
+// --------------------------------------------------------------------------
+
+function renderAdminDeletedAccounts(deletedAccounts) {
+  const tbody = document.getElementById('adminDeletedAccountsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!deletedAccounts || deletedAccounts.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4"><i class="fa-solid fa-folder-open"></i> No deleted employee accounts in record.</td></tr>`;
+    return;
+  }
+
+  deletedAccounts.forEach(acc => {
+    const fullName = acc.name || `${acc.first_name || ''} ${acc.surname || ''}`.trim() || 'Employee';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${fullName}</strong></td>
+      <td><i class="fa-solid fa-phone text-green"></i> ${acc.phone}</td>
+      <td><i class="fa-solid fa-envelope text-blue"></i> ${acc.email}</td>
+      <td><span class="badge-pill">${acc.employee_type ? acc.employee_type.toUpperCase() : 'EMPLOYEE'}</span></td>
+      <td><code>${acc.aadhaar || '-'}</code></td>
+      <td><strong class="text-green">${acc.problems_solved_count || 0} Solved</strong></td>
+      <td><span class="text-muted"><i class="fa-regular fa-clock"></i> ${acc.deleted_at || 'Recently'}</span></td>
+      <td><span class="status-tag status-closed"><i class="fa-solid fa-user-slash"></i> Permanently Deleted</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// --------------------------------------------------------------------------
+// ADMIN: ASSIGN TASK TO EMPLOYEE MODAL & DISPATCH
+// --------------------------------------------------------------------------
+
+let currentAssignTaskId = null;
+let currentAdminEmployeesList = [];
+
+function populateAdminEmployeeAssignSelect(employees) {
+  currentAdminEmployeesList = employees || [];
+  const select = document.getElementById('adminAssignEmployeeSelect');
+  if (!select) return;
+
+  const prevSelected = select.value;
+  select.innerHTML = '<option value="" disabled selected>-- Select an Active Employee --</option>';
+
+  currentAdminEmployeesList.forEach(emp => {
+    const fullName = `${emp.first_name || ''} ${emp.surname || ''}`.trim() || emp.name || 'Employee';
+    const opt = document.createElement('option');
+    opt.value = emp.email || emp.phone;
+    opt.setAttribute('data-name', fullName);
+    opt.setAttribute('data-phone', emp.phone || '');
+    opt.setAttribute('data-email', emp.email || '');
+    opt.setAttribute('data-type', emp.employee_type || 'govt');
+    opt.textContent = `${fullName} (${emp.phone} - ${emp.employee_type ? emp.employee_type.toUpperCase() : 'GOVT'})`;
+    select.appendChild(opt);
+  });
+
+  if (prevSelected) select.value = prevSelected;
+}
+
+function openAdminAssignModal(taskId, encodedHeadline, wasteType) {
+  currentAssignTaskId = taskId;
+  document.getElementById('adminAssignTaskId').value = taskId;
+  const headline = decodeURIComponent(encodedHeadline || 'Reported Spot');
+  document.getElementById('adminAssignTaskHeadline').textContent = `Task #${taskId}: ${headline}`;
+  document.getElementById('adminAssignTaskCategory').textContent = wasteType || 'Municipal Waste';
+
+  const select = document.getElementById('adminAssignEmployeeSelect');
+  if (select) select.selectedIndex = 0;
+
+  document.getElementById('adminAssignTaskModal').classList.remove('hidden');
+}
+
+async function submitAdminTaskAssignment(event) {
+  event.preventDefault();
+  const taskId = document.getElementById('adminAssignTaskId').value || currentAssignTaskId;
+  const select = document.getElementById('adminAssignEmployeeSelect');
+  const selectedOpt = select.options[select.selectedIndex];
+
+  if (!selectedOpt || !selectedOpt.value) {
+    showToast('Please select an active employee from the list to assign this task.', 'error');
+    return;
+  }
+
+  const empEmail = selectedOpt.getAttribute('data-email') || '';
+  const empPhone = selectedOpt.getAttribute('data-phone') || '';
+  const empName = selectedOpt.getAttribute('data-name') || '';
+  const empType = selectedOpt.getAttribute('data-type') || 'govt';
+
+  const submitBtn = document.getElementById('submitAdminAssignBtn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Assigning Task...';
+
+  try {
+    const res = await fetch('/api/admin/assign-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: taskId,
+        employee_email: empEmail,
+        employee_phone: empPhone,
+        employee_name: empName,
+        employee_type: empType
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Task #${taskId} assigned to ${empName}!`, 'success');
+      closeModal('adminAssignTaskModal');
+      loadAdminData();
+    } else {
+      showToast(data.message || 'Failed to assign task', 'error');
+    }
+  } catch (e) {
+    showToast('Network error assigning task', 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fa-solid fa-user-check"></i> Confirm & Assign Task';
   }
 }
 
@@ -2633,17 +3128,67 @@ async function fetchUserNotifications() {
     if (data.success && data.notifications) {
       renderNotificationsList(data.notifications);
 
-      // Alert citizen with toast if new unread heavy load closure notification arrived
+      // Check for unread citizen resolution celebration popups or heavy load alerts
       data.notifications.forEach(n => {
         if (n.unread && !lastSeenNotifIds.has(n.id)) {
           lastSeenNotifIds.add(n.id);
           if (n.type === 'heavy_load_closure') {
             showToast(`⚠️ ${n.message}`, 'error');
+          } else if ((n.type === 'task_resolved' || n.type === 'task_completed' || n.type === 'complaint_resolved') && currentUser.role === 'citizen') {
+            triggerCitizenResolutionPopup(n);
           }
         }
       });
     }
   } catch (e) { }
+}
+
+function triggerCitizenResolutionPopup(notif) {
+  const modal = document.getElementById('citizenResolutionPopupModal');
+  if (!modal) return;
+
+  const ptsVal = notif.awarded_points ? `+${notif.awarded_points} Points` : '+50 Points';
+  const ptsEl = document.getElementById('popupAwardedPoints');
+  if (ptsEl) ptsEl.textContent = ptsVal;
+
+  const headlineEl = document.getElementById('popupTaskHeadline');
+  if (headlineEl) headlineEl.textContent = notif.headline || notif.address || 'Municipal Waste Cleanup';
+
+  const empEl = document.getElementById('popupEmployeeName');
+  if (empEl) empEl.textContent = notif.employee_name || 'Municipal Squad';
+
+  const timeEl = document.getElementById('popupTimeConsumed');
+  if (timeEl) timeEl.textContent = notif.time_consumed || '30 mins';
+
+  const beforeBox = document.getElementById('popupBeforePhotoBox');
+  const beforeImg = document.getElementById('popupBeforePhoto');
+  if (beforeImg) {
+    if (notif.before_photo) {
+      beforeImg.src = notif.before_photo;
+      if (beforeBox) beforeBox.classList.remove('hidden');
+    } else {
+      if (beforeBox) beforeBox.classList.add('hidden');
+    }
+  }
+
+  const afterBox = document.getElementById('popupAfterPhotoBox');
+  const afterImg = document.getElementById('popupAfterPhoto');
+  if (afterImg) {
+    if (notif.after_photo) {
+      afterImg.src = notif.after_photo;
+      if (afterBox) afterBox.classList.remove('hidden');
+    } else {
+      if (afterBox) afterBox.classList.add('hidden');
+    }
+  }
+
+  modal.classList.remove('hidden');
+  loadCitizenPoints();
+}
+
+function closeCitizenResolutionPopup() {
+  const modal = document.getElementById('citizenResolutionPopupModal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function renderNotificationsList(notifs) {
@@ -2668,10 +3213,11 @@ function renderNotificationsList(notifs) {
   notifs.forEach(n => {
     if (n.unread) unreadCount++;
     const isClosure = n.type === 'heavy_load_closure';
+    const isResolved = n.type === 'task_resolved' || n.type === 'task_completed';
     const item = document.createElement('div');
     item.className = `notif-item ${n.unread ? 'unread' : ''} ${isClosure ? 'notif-closure' : ''}`;
     item.innerHTML = `
-      <i class="fa-solid ${isClosure ? 'fa-triangle-exclamation text-red' : 'fa-bell text-green'}"></i>
+      <i class="fa-solid ${isClosure ? 'fa-triangle-exclamation text-red' : (isResolved ? 'fa-circle-check text-green' : 'fa-bell text-green')}"></i>
       <div class="notif-info">
         <p class="notif-title"><strong>${n.title || 'Notice'}</strong></p>
         <p class="notif-msg">${n.message}</p>

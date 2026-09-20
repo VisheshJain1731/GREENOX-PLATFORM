@@ -623,13 +623,71 @@
           <i class="fa-solid fa-moon"></i>
         </button>
 
-        <div class="admin-user-pill">
-          <i class="fa-solid fa-user-shield text-green"></i>
-          <span id="employeeTopName">Employee Name</span>
-          <span class="role-badge-tag" id="employeeTypeBadge">Govt Employee</span>
-          <button type="button" class="admin-logout-btn" onclick="handleLogout()">
-            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+        <!-- Employee Profile Wrapper with Dropdown -->
+        <div class="avatar-profile-wrapper employee-profile-wrap">
+          <button type="button" class="avatar-btn emp-profile-btn" id="employeeAvatarBtn" onclick="toggleEmployeeProfileMenu()">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Officer&backgroundColor=d1fae5" alt="Employee Avatar"
+              class="avatar-img" id="empAvatarImg" />
+            <div class="emp-nav-user-text">
+              <span id="employeeTopName">Employee Name</span>
+              <span class="role-badge-tag" id="employeeTypeBadge">Govt Employee</span>
+            </div>
+            <i class="fa-solid fa-chevron-down emp-dropdown-icon"></i>
           </button>
+
+          <!-- Employee Profile Popover -->
+          <div class="profile-popover employee-popover hidden" id="employeeProfilePopover">
+            <div class="profile-card-header">
+              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Officer&backgroundColor=d1fae5" alt="Profile"
+                class="profile-header-avatar" id="empPopoverAvatarImg" />
+              <div class="profile-header-info">
+                <h4 id="empProfileFullName">Employee Name</h4>
+                <span class="profile-role-badge" id="empProfileRoleTag">Govt Employee</span>
+                <span class="profile-phone-text" id="empProfilePhoneTag"><i class="fa-solid fa-phone"></i> Phone</span>
+                <span class="profile-email-text" id="empProfileEmailTag"><i class="fa-solid fa-envelope"></i> Email</span>
+              </div>
+            </div>
+
+            <!-- Employee Performance Stats Hub -->
+            <div class="profile-hub-section">
+              <div class="profile-hub-card emp-solved-stat-card">
+                <div class="hub-card-left">
+                  <div class="hub-icon-wrap green-icon">
+                    <i class="fa-solid fa-circle-check text-green"></i>
+                  </div>
+                  <div class="hub-text-wrap">
+                    <div class="hub-title">Problems / Tasks Solved</div>
+                    <div class="hub-desc">Verified resolutions completed</div>
+                  </div>
+                </div>
+                <div class="hub-badge-pill green-pill">
+                  <strong id="empProfileSolvedCount">0</strong> Solved
+                </div>
+              </div>
+
+              <div class="profile-hub-card emp-aadhaar-card" id="empAadhaarWrap">
+                <div class="hub-card-left">
+                  <div class="hub-icon-wrap emerald-icon">
+                    <i class="fa-solid fa-id-card"></i>
+                  </div>
+                  <div class="hub-text-wrap">
+                    <div class="hub-title">Aadhaar / Employee ID</div>
+                    <div class="hub-desc" id="empProfileAadhaarTag">10-Digit ID</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Footer Actions: Logout & Permanent Delete Account -->
+            <div class="profile-footer emp-profile-footer">
+              <button type="button" class="logout-btn" onclick="handleLogout()">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+              </button>
+              <button type="button" class="delete-account-btn" onclick="openEmployeeDeleteModal()">
+                <i class="fa-solid fa-user-xmark"></i> Permanent Delete Account
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </header>
@@ -662,7 +720,7 @@
               </div>
               <h1 class="main-green-title">Government Municipal Portal</h1>
               <p class="hero-subtitle">
-                Direct live feed of citizen waste reports, photo evidence, and pinpointed municipal addresses.
+                Accept incoming citizen waste reports, complete tasks with photo evidence and duration, and view solved records.
               </p>
             </div>
             <button type="button" class="emp-refresh-btn" onclick="loadEmployeeData()">
@@ -671,17 +729,36 @@
           </div>
         </section>
 
-        <div class="emp-tasks-container">
+        <!-- Government Employee Task Navigation Tabs -->
+        <div class="govt-emp-nav-tabs">
+          <button type="button" class="g-emp-tab active" id="gTabAvailableBtn" onclick="switchGovtEmpTab('available')">
+            <i class="fa-solid fa-list-ul"></i>
+            <span>1. Available Pending Tasks</span>
+            <span class="tab-badge" id="govtAvailableCount">0</span>
+          </button>
+          <button type="button" class="g-emp-tab" id="gTabAcceptedBtn" onclick="switchGovtEmpTab('accepted')">
+            <i class="fa-solid fa-hand-holding-hand text-gold"></i>
+            <span>2. My Accepted / Assigned Tasks</span>
+            <span class="tab-badge badge-gold" id="govtAcceptedCount">0</span>
+          </button>
+          <button type="button" class="g-emp-tab" id="gTabSolvedBtn" onclick="switchGovtEmpTab('solved')">
+            <i class="fa-solid fa-circle-check text-green"></i>
+            <span>3. My Solved History</span>
+            <span class="tab-badge badge-green" id="govtSolvedCount">0</span>
+          </button>
+        </div>
+
+        <!-- SUB-TAB 1: AVAILABLE PENDING TASKS (ACCEPT TASK OPTION) -->
+        <div id="govtAvailableSection" class="g-emp-sub-section">
           <div class="section-title-wrap">
             <div>
-              <div class="section-tag"><i class="fa-solid fa-list-check text-green"></i> DISPATCHED MUNICIPAL TASKS
-              </div>
-              <h2 class="section-heading">Tasks Pending (Report Waste Complaints)</h2>
-              <p class="section-desc">Real-time geo-tagged incidents assigned to government municipal units.</p>
+              <div class="section-tag"><i class="fa-solid fa-list-check text-green"></i> DISPATCHED MUNICIPAL TASKS</div>
+              <h2 class="section-heading">Available Tasks Pending (Click "Accept the Task")</h2>
+              <p class="section-desc">Reported citizen waste incidents waiting for municipal squad assignment.</p>
             </div>
             <div class="showcase-counter-chip">
               <span class="pulse-indicator"></span>
-              <span id="govtPendingCount">0 Pending</span>
+              <span id="govtPendingCount">0 Available</span>
             </div>
           </div>
 
@@ -698,13 +775,72 @@
                   <th>Action</th>
                 </tr>
               </thead>
-              <tbody id="govtTasksTableBody">
+              <tbody id="govtAvailableTableBody">
+                <!-- Populated dynamically with 'Accept the Task' button -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: MY ACCEPTED TASKS (TASK COMPLETION OPTION) -->
+        <div id="govtAcceptedSection" class="g-emp-sub-section hidden">
+          <div class="section-title-wrap">
+            <div>
+              <div class="section-tag text-gold"><i class="fa-solid fa-hand-holding-hand"></i> ACTIVE SQUAD ENGAGEMENT</div>
+              <h2 class="section-heading text-gold">My Accepted / Assigned Tasks</h2>
+              <p class="section-desc">Tasks currently accepted by or assigned to you. Click "Task Completion" when finished.</p>
+            </div>
+          </div>
+
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>Complaint Heading (Location)</th>
+                  <th>Waste Category</th>
+                  <th>Incident Photo</th>
+                  <th>Citizen Reporter</th>
+                  <th>Accepted At</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="govtAcceptedTableBody">
+                <!-- Populated dynamically with 'Task Completion' button -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 3: MY SOLVED TASKS HISTORY -->
+        <div id="govtSolvedSection" class="g-emp-sub-section hidden">
+          <div class="section-title-wrap">
+            <div>
+              <div class="section-tag text-green"><i class="fa-solid fa-circle-check"></i> RESOLUTION ARCHIVE</div>
+              <h2 class="section-heading">My Solved Complaints History</h2>
+              <p class="section-desc">All waste complaints resolved and cleared by you with verified before/after proof.</p>
+            </div>
+          </div>
+
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Task ID & Solved Time</th>
+                  <th>Location</th>
+                  <th>Category</th>
+                  <th>Before / After Proof</th>
+                  <th>Time Taken</th>
+                  <th>Citizen Info</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="govtSolvedTableBody">
                 <!-- Populated dynamically -->
               </tbody>
             </table>
           </div>
         </div>
-      </div>
 
       <!-- VIEW B: PRIVATE EMPLOYEE PORTAL -->
       <div id="privateEmployeeView" class="emp-view-section hidden">
@@ -968,9 +1104,17 @@
             <strong class="admin-stat-num" id="adminStatFalseReports">0</strong>
           </div>
         </div>
+        <div class="admin-stat-card card-deleted" onclick="switchAdminTab('deleted')"
+          title="Click to view Deleted Accounts Archive">
+          <div class="admin-stat-icon text-red"><i class="fa-solid fa-user-slash"></i></div>
+          <div class="admin-stat-info">
+            <span class="admin-stat-label">Deleted Accounts Archive</span>
+            <strong class="admin-stat-num" id="adminStatDeleted">0</strong>
+          </div>
+        </div>
       </section>
 
-      <!-- Admin Tab Controls (6 Tabs) -->
+      <!-- Admin Tab Controls (7 Tabs) -->
       <div class="admin-panel-box">
         <div class="admin-nav-tabs">
           <button type="button" class="admin-tab active" data-tab="tasks" onclick="switchAdminTab('tasks')">
@@ -1003,6 +1147,11 @@
             <span>6. Registered Users (CSV)</span>
             <span class="tab-badge" id="adminUsersBadge">0</span>
           </button>
+          <button type="button" class="admin-tab" data-tab="deleted" onclick="switchAdminTab('deleted')">
+            <i class="fa-solid fa-user-slash text-red"></i>
+            <span>7. Deleted Accounts Archive</span>
+            <span class="tab-badge badge-red" id="adminDeletedBadge">0</span>
+          </button>
         </div>
 
         <!-- TAB 1: TASKS (Report Waste) -->
@@ -1024,7 +1173,7 @@
                   <th>Waste Type</th>
                   <th>Photo Evidence</th>
                   <th>Reporter</th>
-                  <th>Status</th>
+                  <th>Status / Assigned To</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -1171,6 +1320,36 @@
                 </tr>
               </thead>
               <tbody id="adminUsersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 7: DELETED ACCOUNTS ARCHIVE (NEW TAB) -->
+        <div class="admin-tab-content hidden" id="adminDeletedSection">
+          <div class="admin-section-header">
+            <div>
+              <h4 class="text-red"><i class="fa-solid fa-user-slash text-red"></i> Permanently Deleted Accounts & Employee Archive</h4>
+              <span class="section-sub-desc">Full historical audit records of employee accounts deleted by users with password confirmation, including all performance data and solved tasks count.</span>
+            </div>
+            <button type="button" class="refresh-btn" onclick="loadAdminData()"><i class="fa-solid fa-rotate"></i>
+              Refresh</button>
+          </div>
+          <div class="tasks-table-responsive">
+            <table class="greenox-table">
+              <thead>
+                <tr>
+                  <th>Employee Name</th>
+                  <th>Phone Number</th>
+                  <th>Email Address</th>
+                  <th>Category / Role</th>
+                  <th>Aadhaar / Org ID</th>
+                  <th>Total Problems Solved</th>
+                  <th>Registered Date</th>
+                  <th>Deleted At</th>
+                  <th>Archive Status</th>
+                </tr>
+              </thead>
+              <tbody id="adminDeletedAccountsTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -2136,6 +2315,249 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       MODAL: EMPLOYEE PERMANENT ACCOUNT DELETION (PASSWORD CONFIRMATION)
+  ==================================================== -->
+  <div id="employeeDeleteModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'employeeDeleteModal')">
+    <div class="modal-card modal-delete-card">
+      <div class="modal-header header-danger-bg">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-red pulse-danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
+          <div>
+            <h3 class="text-red">Confirm Permanent Account Deletion</h3>
+            <span class="modal-sub">Irreversible action • Archiving employee performance records</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('employeeDeleteModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="employeeDeleteForm" class="modal-body form-sequence" onsubmit="submitEmployeePermanentDelete(event)">
+        <div class="delete-warning-banner">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <div>
+            <strong>Warning: Permanent Deletion</strong>
+            <p>Your employee credentials will be permanently removed from the active database. All your completed tasks, verified problem resolutions, contact details, and dates will be permanently archived into the <strong>Admin Deleted Accounts</strong> log.</p>
+          </div>
+        </div>
+
+        <div id="empDeleteAlert" class="alert-box hidden"></div>
+
+        <div class="form-seq-group">
+          <label for="empDeletePassword" class="seq-label"><span class="step-num">1</span> Enter Login Password to Confirm</label>
+          <div class="password-input-wrap">
+            <input type="password" id="empDeletePassword" placeholder="Enter your current login password" required />
+            <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('empDeletePassword')" aria-label="Toggle password">
+              <i class="fa-regular fa-eye"></i>
+            </button>
+          </div>
+          <span class="field-note"><i class="fa-solid fa-shield-halved"></i> Security verification is required to authorize permanent account termination.</span>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('employeeDeleteModal')">Cancel</button>
+          <button type="submit" class="primary-btn btn-danger-action" id="empConfirmDeleteBtn">
+            <i class="fa-solid fa-trash-can"></i> Permanently Delete My Account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       MODAL: EMPLOYEE TASK COMPLETION (PROOF PHOTO & DURATION)
+  ==================================================== -->
+  <div id="completeTaskModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'completeTaskModal')">
+    <div class="modal-card modal-half-dim">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-green"><i class="fa-solid fa-circle-check"></i></div>
+          <div>
+            <h3>Complete Task & Submit Proof</h3>
+            <span class="modal-sub">Upload resolved photo evidence and specify solving time duration (Awards 40–70 Greenox Points to citizen)</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('completeTaskModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="completeTaskForm" class="modal-body form-sequence" onsubmit="submitEmployeeTaskCompletion(event)">
+        <input type="hidden" id="completeTaskId" />
+
+        <!-- Task Headline Info Header -->
+        <div class="task-info-banner" id="completeTaskInfoBanner">
+          <i class="fa-solid fa-location-dot text-green"></i>
+          <div>
+            <strong id="completeTaskHeadline">Task Location</strong>
+            <span id="completeTaskCategory" class="badge-pill">Waste Category</span>
+          </div>
+        </div>
+
+        <!-- Step 1: Proof Photo Upload -->
+        <div class="form-seq-group">
+          <label class="seq-label"><span class="step-num">1</span> Upload After-Cleaning Proof Photo</label>
+          <div class="photo-upload-zone">
+            <div class="upload-options-row">
+              <label for="completeTaskGalleryInput" class="upload-btn-chip">
+                <i class="fa-solid fa-images"></i> Upload from Gallery / Files
+              </label>
+              <label for="completeTaskCameraInput" class="upload-btn-chip">
+                <i class="fa-solid fa-camera"></i> Take Camera Photo
+              </label>
+              <input type="file" id="completeTaskGalleryInput" accept="image/*" class="hidden-file-input"
+                onchange="handleCompletePhotoUpload(event)" />
+              <input type="file" id="completeTaskCameraInput" accept="image/*" capture="environment"
+                class="hidden-file-input" onchange="handleCompletePhotoUpload(event)" />
+            </div>
+
+            <!-- Preview box -->
+            <div class="photo-preview-wrap hidden" id="completePhotoPreviewWrap">
+              <img id="completePhotoPreview" src="" alt="Resolved Spot Proof" />
+              <button type="button" class="remove-photo-btn" onclick="removeCompletePhoto()">
+                <i class="fa-solid fa-trash"></i> Remove Photo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: Time Duration Selector / Input -->
+        <div class="form-seq-group">
+          <label for="completeTimeConsumed" class="seq-label"><span class="step-num">2</span> Time Duration of Solving the Task</label>
+          <div class="quick-duration-pills">
+            <button type="button" class="duration-pill" onclick="setQuickDuration('15 mins')">15 mins</button>
+            <button type="button" class="duration-pill active" onclick="setQuickDuration('30 mins')">30 mins</button>
+            <button type="button" class="duration-pill" onclick="setQuickDuration('45 mins')">45 mins</button>
+            <button type="button" class="duration-pill" onclick="setQuickDuration('1 hr')">1 hr</button>
+            <button type="button" class="duration-pill" onclick="setQuickDuration('2 hrs')">2 hrs</button>
+          </div>
+          <input type="text" id="completeTimeConsumed" value="30 mins" placeholder="e.g. 30 mins, 45 mins, 1 hr" required />
+          <span class="field-note"><i class="fa-solid fa-gift text-gold"></i> Submitting resolution will automatically credit random 40 to 70 GREENOX Points to the citizen reporter.</span>
+        </div>
+
+        <!-- Step 3: Resolution Notes -->
+        <div class="form-seq-group">
+          <label for="completeNotes" class="seq-label"><span class="step-num">3</span> Resolution Notes / Work Summary (Optional)</label>
+          <input type="text" id="completeNotes" placeholder="e.g. Site cleared, dry waste bagged, and area sanitized." />
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('completeTaskModal')">Cancel</button>
+          <button type="submit" class="primary-btn submit-task-btn" id="submitCompleteTaskBtn">
+            <i class="fa-solid fa-circle-check"></i> Submit Task Completion
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       MODAL: ADMIN ASSIGN TASK TO EMPLOYEE
+  ==================================================== -->
+  <div id="adminAssignTaskModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'adminAssignTaskModal')">
+    <div class="modal-card modal-half-dim">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge text-gold"><i class="fa-solid fa-user-plus"></i></div>
+          <div>
+            <h3>Assign Task to Employee</h3>
+            <span class="modal-sub">Select an active registered employee to dispatch for this municipal task</span>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeModal('adminAssignTaskModal')">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="adminAssignTaskForm" class="modal-body form-sequence" onsubmit="submitAdminTaskAssignment(event)">
+        <input type="hidden" id="adminAssignTaskId" />
+
+        <div class="task-info-banner" id="adminAssignTaskInfoBanner">
+          <i class="fa-solid fa-map-location-dot text-gold"></i>
+          <div>
+            <strong id="adminAssignTaskHeadline">Task Headline</strong>
+            <span id="adminAssignTaskCategory" class="badge-pill">Category</span>
+          </div>
+        </div>
+
+        <div class="form-seq-group">
+          <label for="adminAssignEmployeeSelect" class="seq-label"><span class="step-num">1</span> Choose Employee to Assign</label>
+          <div class="custom-select-wrap">
+            <select id="adminAssignEmployeeSelect" required>
+              <option value="" disabled selected>-- Select an Active Employee --</option>
+              <!-- Populated dynamically with registered employees -->
+            </select>
+          </div>
+          <span class="field-note"><i class="fa-solid fa-info-circle"></i> Once assigned, this task will immediately appear in the selected employee's "My Accepted / Assigned Tasks" tab.</span>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" onclick="closeModal('adminAssignTaskModal')">Cancel</button>
+          <button type="submit" class="primary-btn submit-task-btn gold-btn" id="submitAdminAssignBtn">
+            <i class="fa-solid fa-user-check"></i> Confirm & Assign Task
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       MODAL: CITIZEN RESOLUTION CELEBRATION POPUP
+  ==================================================== -->
+  <div id="citizenResolutionPopupModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'citizenResolutionPopupModal')">
+    <div class="modal-card citizen-celebration-card">
+      <div class="celebration-header">
+        <div class="celebration-icon-bubble pulse-gold">
+          <i class="fa-solid fa-trophy text-gold"></i>
+        </div>
+        <button type="button" class="modal-close-btn celebration-close" onclick="closeCitizenResolutionPopup()">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        <h2 class="celebration-title">🎉 Your Reported Issue Has Been Cleaned!</h2>
+        <p class="celebration-subtitle">Thank you for making our city cleaner! Your waste report was resolved by the municipal squad.</p>
+      </div>
+
+      <div class="modal-body celebration-body">
+        <div class="reward-points-strip">
+          <div class="reward-points-left">
+            <i class="fa-solid fa-coins text-gold"></i>
+            <div>
+              <span class="reward-points-label">Greenox Reward Earned</span>
+              <strong class="reward-points-val" id="popupAwardedPoints">+50 Points</strong>
+            </div>
+          </div>
+          <span class="reward-points-tag">Credited to Balance</span>
+        </div>
+
+        <div class="task-resolved-details-card">
+          <h4 id="popupTaskHeadline">Reported Location</h4>
+          <div class="resolved-meta-row">
+            <span><i class="fa-solid fa-user-shield text-green"></i> Squad: <strong id="popupEmployeeName">Municipal Worker</strong></span>
+            <span><i class="fa-solid fa-clock text-blue"></i> Time Taken: <strong id="popupTimeConsumed">30 mins</strong></span>
+          </div>
+
+          <div class="popup-proof-photos-grid">
+            <div class="popup-photo-box" id="popupBeforePhotoBox">
+              <span class="photo-badge before">Before</span>
+              <img id="popupBeforePhoto" src="" alt="Before Cleaning" />
+            </div>
+            <div class="popup-photo-box" id="popupAfterPhotoBox">
+              <span class="photo-badge after">After</span>
+              <img id="popupAfterPhoto" src="" alt="After Cleaning" />
+            </div>
+          </div>
+        </div>
+
+        <div class="celebration-actions">
+          <button type="button" class="primary-btn gold-btn celebration-btn" onclick="closeCitizenResolutionPopup()">
+            <i class="fa-solid fa-gift"></i> Awesome! Claim Points & Continue
+          </button>
+        </div>
       </div>
     </div>
   </div>

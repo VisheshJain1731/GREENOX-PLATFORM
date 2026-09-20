@@ -26,6 +26,7 @@ EMERGENCIES_JSON = os.path.join(DATA_DIR, 'emergencies.json')
 SHOWCASE_JSON = os.path.join(DATA_DIR, 'showcase.json')
 REPORTS_JSON = os.path.join(DATA_DIR, 'reports.json')
 NOTIFICATIONS_JSON = os.path.join(DATA_DIR, 'notifications.json')
+DELETED_ACCOUNTS_JSON = os.path.join(DATA_DIR, 'deleted_accounts.json')
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, 'public', 'uploads'), exist_ok=True)
@@ -117,6 +118,8 @@ def ensure_clean_storage():
         save_json(REPORTS_JSON, [])
     if not os.path.exists(NOTIFICATIONS_JSON):
         save_json(NOTIFICATIONS_JSON, [])
+    if not os.path.exists(DELETED_ACCOUNTS_JSON):
+        save_json(DELETED_ACCOUNTS_JSON, [])
 
 ensure_clean_storage()
 
@@ -468,27 +471,346 @@ def create_emergency():
 @app.route('/api/employee/data', methods=['GET'])
 def get_employee_data():
     employee_type = request.args.get('type', 'govt').strip().lower()
+    email = request.args.get('email', '').strip().lower()
+    phone = request.args.get('phone', '').strip()
+    name = request.args.get('name', '').strip()
     
     if employee_type == 'govt':
-        # Government employees ONLY see municipal waste report tasks
         tasks = load_json(TASKS_JSON, [])
+        # Pending / Available tasks that have not been accepted or assigned
+        available_tasks = [t for t in tasks if t.get('status') == 'Pending' and not t.get('assigned_to')]
+        
+        def matches_emp(t):
+            t_email = (t.get('assigned_to_email') or '').strip().lower()
+            t_phone = (t.get('assigned_to_phone') or '').strip()
+            t_name = (t.get('assigned_to') or '').strip().lower()
+            return (email and t_email == email) or (phone and t_phone == phone) or (name and t_name == name.lower())
+        
+        my_accepted_tasks = [t for t in tasks if t.get('status') in ['Accepted', 'Assigned', 'In Progress'] and matches_emp(t)]
+        my_solved_tasks = [t for t in tasks if t.get('status') == 'Resolved' and (matches_emp(t) or ((t.get('resolved_by') or '').strip().lower() == name.lower() if name else False))]
+        
         return jsonify({
             "success": True,
             "type": "govt",
+            "available_tasks": available_tasks,
+            "my_accepted_tasks": my_accepted_tasks,
+            "my_solved_tasks": my_solved_tasks,
             "pending_tasks": [t for t in tasks if t.get('status') != 'Resolved'],
-            "all_tasks": tasks
+            "all_tasks": tasks,
+            "solved_count": len(my_solved_tasks)
         })
     else:
-        # Private employees ONLY see private cleaning bookings & nearby emergency requests
         bookings = load_json(BOOKINGS_JSON, [])
         emergencies = load_json(EMERGENCIES_JSON, [])
+        
+        def matches_emp_b(b):
+            b_email = (b.get('assigned_to_email') or '').strip().lower()
+            b_phone = (b.get('assigned_to_phone') or '').strip()
+            b_name = (b.get('assigned_to') or '').strip().lower()
+            return (email and b_email == email) or (phone and b_phone == phone) or (name and b_name == name.lower())
+        
+        available_bookings = [b for b in bookings if b.get('status') == 'Pending' and not b.get('assigned_to')]
+        my_accepted_bookings = [b for b in bookings if b.get('status') in ['Accepted', 'Assigned', 'In Progress'] and matches_emp_b(b)]
+        my_completed_bookings = [b for b in bookings if b.get('status') == 'Completed' and (matches_emp_b(b) or ((b.get('resolved_by') or '').strip().lower() == name.lower() if name else False))]
+        
         return jsonify({
             "success": True,
             "type": "private",
+            "available_bookings": available_bookings,
+            "my_accepted_bookings": my_accepted_bookings,
+            "my_completed_bookings": my_completed_bookings,
             "pending_tasks": [b for b in bookings if b.get('status') != 'Completed'],
             "all_bookings": bookings,
-            "emergencies": [e for e in emergencies if e.get('status') in ['DISPATCHED', 'EN_ROUTE']]
+            "emergencies": [e for e in emergencies if e.get('status') in ['DISPATCHED', 'EN_ROUTE']],
+            "solved_count": len(my_completed_bookings)
         })
+
+@app.route('/api/employee/accept-task', methods=['POST'])
+def accept_employee_task():
+    data = request.get_json() or {}
+    task_id = data.get('task_id')
+    employee_name = data.get('employee_name', 'Government Municipal Employee').strip()
+    employee_email = data.get('employee_email', '').strip().lower()
+    employee_phone = data.get('employee_phone', '').strip()
+
+    if not task_id:
+        return jsonify({"success": False, "message": "Task ID is required."}), 400
+
+    tasks = load_json(TASKS_JSON, [])
+    target = None
+    for t in tasks:
+        if t.get('id') == task_id:
+            t['status'] = 'Accepted'
+            t['assigned_to'] = employee_name
+            t['assigned_to_email'] = employee_email
+            t['assigned_to_phone'] = employee_phone
+            t['accepted_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            target = t
+            break
+
+    if not target:
+        return jsonify({"success": False, "message": "Task not found."}), 404
+
+    save_json(TASKS_JSON, tasks)
+    return jsonify({
+        "success": True,
+        "message": f"Task {task_id} successfully accepted! It has been moved to your 'My Accepted Tasks' tab.",
+        "task": target
+    })
+
+@app.route('/api/admin/assign-task', methods=['POST'])
+def admin_assign_task():
+    data = request.get_json() or {}
+    task_id = data.get('task_id')
+    employee_name = data.get('employee_name', '').strip()
+    employee_email = data.get('employee_email', '').strip().lower()
+    employee_phone = data.get('employee_phone', '').strip()
+
+    if not task_id or not employee_name:
+        return jsonify({"success": False, "message": "Task ID and Employee selection are required."}), 400
+
+    tasks = load_json(TASKS_JSON, [])
+    target = None
+    for t in tasks:
+        if t.get('id') == task_id:
+            t['status'] = 'Assigned'
+            t['assigned_to'] = employee_name
+            t['assigned_to_email'] = employee_email
+            t['assigned_to_phone'] = employee_phone
+            t['assigned_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            target = t
+            break
+
+    if not target:
+        return jsonify({"success": False, "message": "Task not found."}), 404
+
+    save_json(TASKS_JSON, tasks)
+    return jsonify({
+        "success": True,
+        "message": f"Task {task_id} assigned to '{employee_name}' successfully!",
+        "task": target
+    })
+
+@app.route('/api/employee/complete-task', methods=['POST'])
+def employee_complete_task():
+    data = request.get_json() or {}
+    task_id = data.get('task_id')
+    after_photo = data.get('after_photo', '')
+    time_consumed = data.get('time_consumed', '30 mins').strip()
+    notes = data.get('notes', 'Cleaned & verified on site.').strip()
+    employee_name = data.get('employee_name', 'Municipal Employee').strip()
+    employee_email = data.get('employee_email', '').strip().lower()
+    employee_phone = data.get('employee_phone', '').strip()
+
+    if not task_id:
+        return jsonify({"success": False, "message": "Task ID is required."}), 400
+
+    tasks = load_json(TASKS_JSON, [])
+    target = None
+    for t in tasks:
+        if t.get('id') == task_id:
+            t['status'] = 'Resolved'
+            t['resolved_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            t['resolved_by'] = employee_name
+            t['resolved_by_email'] = employee_email
+            t['resolved_by_phone'] = employee_phone
+            t['resolved_after_photo'] = after_photo
+            t['resolved_time_consumed'] = time_consumed
+            t['resolved_notes'] = notes
+            target = t
+            break
+
+    if not target:
+        return jsonify({"success": False, "message": "Task not found."}), 404
+
+    # Award random 40 to 70 Greenox Points to citizen reporter
+    awarded_pts = target.get('awarded_points')
+    if not awarded_pts:
+        awarded_pts = random.randint(40, 70)
+        target['awarded_points'] = awarded_pts
+        target['points_awarded_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Find reporter user in users.json and credit points
+        rep_email = target.get('reporter_email', '').strip().lower()
+        rep_phone = target.get('reporter_phone', '').strip()
+        all_users = load_json(USERS_JSON, [])
+        for u in all_users:
+            if (rep_email and u.get('email', '').strip().lower() == rep_email) or \
+               (rep_phone and u.get('phone', '').strip() == rep_phone):
+                u['greenox_points'] = u.get('greenox_points', 0) + awarded_pts
+                if 'points_history' not in u:
+                    u['points_history'] = []
+                u['points_history'].insert(0, {
+                    "id": f"PTS-{int(time.time() % 100000):05d}",
+                    "type": "earned",
+                    "points": awarded_pts,
+                    "reason": f"Complaint #{target.get('id')} resolved by {employee_name} ({target.get('headline')})",
+                    "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                })
+                break
+        save_json(USERS_JSON, all_users)
+
+    # Push persistent popup notification for citizen reporter
+    rep_email = target.get('reporter_email', '').strip().lower()
+    rep_phone = target.get('reporter_phone', '').strip()
+    headline_info = target.get('headline') or target.get('address') or task_id
+    
+    notifications = load_json(NOTIFICATIONS_JSON, [])
+    notif_id = f"NOTIF-{int(time.time() % 100000):05d}"
+    new_notif = {
+        "id": notif_id,
+        "type": "complaint_resolved",
+        "title": "🎉 Your Reported Issue Has Been Resolved!",
+        "message": f"Your waste report #{task_id} at '{headline_info}' was successfully cleaned by {employee_name} in {time_consumed}. You have been awarded +{awarded_pts} GREENOX Points!",
+        "recipient_email": rep_email,
+        "recipient_phone": rep_phone,
+        "ref_id": task_id,
+        "ref_type": "complaint",
+        "awarded_points": awarded_pts,
+        "time_consumed": time_consumed,
+        "employee_name": employee_name,
+        "headline": headline_info,
+        "before_photo": target.get('photo', ''),
+        "after_photo": after_photo,
+        "popup_alert": True,
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "unread": True
+    }
+    notifications.insert(0, new_notif)
+    save_json(NOTIFICATIONS_JSON, notifications)
+    save_json(TASKS_JSON, tasks)
+
+    # Also add to public showcase feed
+    showcase = load_json(SHOWCASE_JSON, [])
+    new_showcase_item = {
+        "id": f"CASE-{int(time.time() % 10000):04d}",
+        "headline": target.get('headline'),
+        "address": target.get('address'),
+        "waste_type": target.get('waste_type'),
+        "before_photo": target.get('photo'),
+        "after_photo": after_photo or "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
+        "time_consumed": time_consumed,
+        "duration_minutes": int(time_consumed.split()[0]) if time_consumed.split()[0].isdigit() else 30,
+        "team": employee_name or target.get('assigned_team', 'Government Municipal Squad'),
+        "solved_at": "Just now",
+        "rating": 5.0,
+        "status": "Resolved & Verified"
+    }
+    showcase.insert(0, new_showcase_item)
+    save_json(SHOWCASE_JSON, showcase)
+
+    return jsonify({
+        "success": True,
+        "message": f"Task #{task_id} completed successfully! {awarded_pts} Greenox points credited to citizen.",
+        "task": target,
+        "awarded_points": awarded_pts,
+        "notification": new_notif
+    })
+
+@app.route('/api/employee/delete-account', methods=['POST'])
+def employee_delete_account():
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    phone = data.get('phone', '').strip()
+    password = data.get('password', '').strip()
+    role = data.get('role', 'employee').strip().lower()
+
+    if (not email and not phone) or not password:
+        return jsonify({"success": False, "message": "Login password is required to permanently delete account."}), 400
+
+    users = load_json(USERS_JSON, [])
+    target_idx = None
+    target_user = None
+
+    for i, u in enumerate(users):
+        u_email = (u.get('email') or '').strip().lower()
+        u_phone = (u.get('phone') or '').strip()
+        u_role = (u.get('role') or '').strip().lower()
+        
+        if ((email and u_email == email) or (phone and u_phone == phone)) and (not role or u_role == role):
+            if u.get('password') == password:
+                target_idx = i
+                target_user = u
+                break
+            else:
+                return jsonify({"success": False, "message": "Incorrect password! Permanent account deletion cancelled."}), 401
+
+    if target_user is None:
+        return jsonify({"success": False, "message": "Account not found or password does not match registered credentials."}), 404
+
+    # Calculate employee stats (total problems solved)
+    full_name = f"{target_user.get('first_name', '')} {target_user.get('surname', '')}".strip()
+    tasks = load_json(TASKS_JSON, [])
+    bookings = load_json(BOOKINGS_JSON, [])
+    emergencies = load_json(EMERGENCIES_JSON, [])
+
+    emp_email = target_user.get('email', '').strip().lower()
+    emp_phone = target_user.get('phone', '').strip()
+
+    solved_tasks = [
+        t for t in tasks
+        if t.get('status') == 'Resolved' and (
+            (emp_email and t.get('assigned_to_email') == emp_email) or
+            (emp_phone and t.get('assigned_to_phone') == emp_phone) or
+            (full_name and (t.get('resolved_by') == full_name or t.get('assigned_to') == full_name))
+        )
+    ]
+    completed_bookings = [
+        b for b in bookings
+        if b.get('status') == 'Completed' and (
+            (emp_email and b.get('assigned_to_email') == emp_email) or
+            (emp_phone and b.get('assigned_to_phone') == emp_phone) or
+            (full_name and (b.get('resolved_by') == full_name or b.get('assigned_to') == full_name))
+        )
+    ]
+    resolved_emergencies = [
+        e for e in emergencies
+        if e.get('status') == 'RESOLVED' and (
+            full_name and e.get('resolved_by') == full_name
+        )
+    ]
+
+    total_solved = len(solved_tasks) + len(completed_bookings) + len(resolved_emergencies)
+
+    # Archive to DELETED_ACCOUNTS_JSON
+    deleted_accounts = load_json(DELETED_ACCOUNTS_JSON, [])
+    deleted_record = {
+        "id": f"DEL-{int(time.time() % 100000):05d}",
+        "first_name": target_user.get('first_name', ''),
+        "surname": target_user.get('surname', ''),
+        "name": full_name,
+        "full_name": full_name,
+        "phone": target_user.get('phone', ''),
+        "email": target_user.get('email', ''),
+        "address": target_user.get('address', ''),
+        "role": target_user.get('role', 'employee'),
+        "employee_type": target_user.get('employee_type', 'govt'),
+        "aadhaar": target_user.get('aadhaar', ''),
+        "org_id": target_user.get('org_id', ''),
+        "org_name": target_user.get('org_name', ''),
+        "problems_solved_count": total_solved,
+        "solved_tasks_count": len(solved_tasks),
+        "completed_bookings_count": len(completed_bookings),
+        "resolved_emergencies_count": len(resolved_emergencies),
+        "registered_at": target_user.get('created_at', ''),
+        "deleted_at": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "deletion_reason": "Employee self-initiated permanent deletion with password confirmation",
+        "status": "Permanently Deleted & Archived"
+    }
+
+    deleted_accounts.insert(0, deleted_record)
+    save_json(DELETED_ACCOUNTS_JSON, deleted_accounts)
+
+    # Remove user from users.json and sync CSV
+    users.pop(target_idx)
+    save_json(USERS_JSON, users)
+    rewrite_all_users_to_csv(users)
+
+    return jsonify({
+        "success": True,
+        "message": f"Employee account for '{full_name}' has been permanently deleted! Performance profile ({total_solved} solved tasks) has been safely archived in the Admin Deleted Accounts panel.",
+        "archived_record": deleted_record
+    })
 
 # ----------------- CITIZEN HISTORY & TRACKING API -----------------
 
@@ -613,8 +935,10 @@ def get_admin_data():
     users = load_json(USERS_JSON, [])
     reports = load_json(REPORTS_JSON, [])
     notifications = load_json(NOTIFICATIONS_JSON, [])
+    deleted_accounts = load_json(DELETED_ACCOUNTS_JSON, [])
     
     users_clean = [{k: v for k, v in u.items() if k != 'password'} for u in users]
+    employees = [u for u in users_clean if u.get('role') == 'employee']
     solved_tasks = [t for t in tasks if t.get('status') == 'Resolved']
 
     return jsonify({
@@ -625,8 +949,10 @@ def get_admin_data():
         "emergencies": emergencies,
         "showcase": showcase,
         "users": users_clean,
+        "employees": employees,
         "reports": reports,
         "notifications": notifications,
+        "deleted_accounts": deleted_accounts,
         "stats": {
             "total_tasks": len(tasks),
             "pending_tasks": len([t for t in tasks if t.get('status') == 'Pending']),
@@ -635,6 +961,8 @@ def get_admin_data():
             "emergency_calls": len(emergencies),
             "solved_cases": len(showcase),
             "registered_users": len(users),
+            "registered_employees": len(employees),
+            "deleted_accounts": len(deleted_accounts),
             "false_reports": len(reports)
         }
     })
@@ -664,10 +992,10 @@ def update_task_status():
         target_task['resolved_after_photo'] = after_photo
         target_task['resolved_time_consumed'] = time_consumed
 
-        # Award 35 to 70 Greenox Points to citizen reporter
+        # Award 40 to 70 Greenox Points to citizen reporter
         awarded_pts = target_task.get('awarded_points')
         if not awarded_pts:
-            awarded_pts = random.randint(35, 70)
+            awarded_pts = random.randint(40, 70)
             target_task['awarded_points'] = awarded_pts
             target_task['points_awarded_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -686,13 +1014,41 @@ def update_task_status():
                             "id": f"PTS-{int(time.time() % 100000):05d}",
                             "type": "earned",
                             "points": awarded_pts,
-                            "reason": f"Complaint #{target_task.get('id')} resolved by employee squad ({target_task.get('headline')})",
+                            "reason": f"Complaint #{target_task.get('id')} resolved by squad ({target_task.get('headline')})",
                             "date": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         })
                         break
                 save_json(USERS_JSON, all_users)
 
         save_json(TASKS_JSON, tasks)
+
+        # Push persistent notification for citizen reporter
+        rep_email = target_task.get('reporter_email', '').strip().lower()
+        rep_phone = target_task.get('reporter_phone', '').strip()
+        headline_info = target_task.get('headline') or target_task.get('address') or task_id
+        
+        notifications = load_json(NOTIFICATIONS_JSON, [])
+        notif_id = f"NOTIF-{int(time.time() % 100000):05d}"
+        new_notif = {
+            "id": notif_id,
+            "type": "complaint_resolved",
+            "title": "🎉 Your Reported Issue Has Been Resolved!",
+            "message": f"Your waste report #{task_id} at '{headline_info}' was successfully resolved. You have received +{awarded_pts} GREENOX Points!",
+            "recipient_email": rep_email,
+            "recipient_phone": rep_phone,
+            "ref_id": task_id,
+            "ref_type": "complaint",
+            "awarded_points": awarded_pts,
+            "time_consumed": time_consumed,
+            "headline": headline_info,
+            "before_photo": target_task.get('photo', ''),
+            "after_photo": after_photo,
+            "popup_alert": True,
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "unread": True
+        }
+        notifications.insert(0, new_notif)
+        save_json(NOTIFICATIONS_JSON, notifications)
 
         showcase = load_json(SHOWCASE_JSON, [])
         new_showcase_item = {

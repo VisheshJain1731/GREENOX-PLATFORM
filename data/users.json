@@ -37,7 +37,17 @@
     "address": "1",
     "password": "1",
     "role": "citizen",
-    "created_at": "2026-09-07 19:16:03"
+    "created_at": "2026-09-07 19:16:03",
+    "greenox_points": 52,
+    "points_history": [
+      {
+        "id": "PTS-04179",
+        "type": "earned",
+        "points": 52,
+        "reason": "Complaint #TASK-4054 resolved by 2 2 (Sector 22, Green Avenue (GPS: 28.6180, 77.2246))",
+        "date": "2026-09-20 17:06:19"
+      }
+    ]
   },
   {
     "first_name": "Vishesh",
@@ -192,5 +202,181 @@
     "org_id": "",
     "org_name": "",
     "created_at": "2026-09-19 18:50:16"
+  },
+  {
+    "first_name": "Rohan",
+    "surname": "Sharma",
+    "phone": "9876503679",
+    "email": "citizen_1789903679@test.com",
+    "address": "Flat 402, Green Enclave",
+    "password": "CitPass@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:57:59"
+  },
+  {
+    "first_name": "Vikram",
+    "surname": "Singh",
+    "phone": "9123403679",
+    "email": "emp_1789903679@test.com",
+    "address": "Municipal Ward 4",
+    "password": "EmpPass@123",
+    "role": "employee",
+    "aadhaar": "9876543210",
+    "employee_type": "govt",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:57:59"
+  },
+  {
+    "first_name": "Rohan",
+    "surname": "Sharma",
+    "phone": "9876503744",
+    "email": "citizen_1789903744@test.com",
+    "address": "Flat 402, Green Enclave",
+    "password": "CitPass@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:59:04",
+    "greenox_points": 44,
+    "points_history": [
+      {
+        "id": "PTS-03744",
+        "type": "earned",
+        "points": 44,
+        "reason": "Complaint #TASK-3744 resolved by Vikram Singh (Near Block C Community Park, Sector 5)",
+        "date": "2026-09-20 16:59:04"
+      }
+    ]
+  },
+  {
+    "first_name": "Vikram",
+    "surname": "Singh",
+    "phone": "9123403744",
+    "email": "emp_1789903744@test.com",
+    "address": "Municipal Ward 4",
+    "password": "EmpPass@123",
+    "role": "employee",
+    "aadhaar": "9876543210",
+    "employee_type": "govt",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:59:04"
+  },
+  {
+    "first_name": "Rohan",
+    "surname": "Sharma",
+    "phone": "9876503766",
+    "email": "citizen_1789903766@test.com",
+    "address": "Flat 402, Green Enclave",
+    "password": "CitPass@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:59:26",
+    "greenox_points": 52,
+    "points_history": [
+      {
+        "id": "PTS-03766",
+        "type": "earned",
+        "points": 52,
+        "reason": "Complaint #TASK-3766 resolved by Vikram Singh (Near Block C Community Park, Sector 5)",
+        "date": "2026-09-20 16:59:26"
+      }
+    ]
+  },
+  {
+    "first_name": "Vikram",
+    "surname": "Singh",
+    "phone": "9123403766",
+    "email": "emp_1789903766@test.com",
+    "address": "Municipal Ward 4",
+    "password": "EmpPass@123",
+    "role": "employee",
+    "aadhaar": "9876543210",
+    "employee_type": "govt",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:59:26"
+  },
+  {
+    "first_name": "Rohan",
+    "surname": "Sharma",
+    "phone": "9876503776",
+    "email": "citizen_1789903776@test.com",
+    "address": "Flat 402, Green Enclave",
+    "password": "CitPass@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:59:36",
+    "greenox_points": 40,
+    "points_history": [
+      {
+        "id": "PTS-03776",
+        "type": "earned",
+        "points": 40,
+        "reason": "Complaint #TASK-3776 resolved by Vikram Singh (Near Block C Community Park, Sector 5)",
+        "date": "2026-09-20 16:59:36"
+      }
+    ]
+  },
+  {
+    "first_name": "Rohan",
+    "surname": "Sharma",
+    "phone": "9876503787",
+    "email": "citizen_1789903787@test.com",
+    "address": "Flat 402, Green Enclave",
+    "password": "CitPass@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 16:59:47",
+    "greenox_points": 68,
+    "points_history": [
+      {
+        "id": "PTS-03787",
+        "type": "earned",
+        "points": 68,
+        "reason": "Complaint #TASK-3787 resolved by Vikram Singh (Near Block C Community Park, Sector 5)",
+        "date": "2026-09-20 16:59:47"
+      }
+    ]
+  },
+  {
+    "first_name": "Rohan",
+    "surname": "Sharma",
+    "phone": "9876503806",
+    "email": "citizen_1789903806@test.com",
+    "address": "Flat 402, Green Enclave",
+    "password": "CitPass@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-20 17:00:06",
+    "greenox_points": 57,
+    "points_history": [
+      {
+        "id": "PTS-03806",
+        "type": "earned",
+        "points": 57,
+        "reason": "Complaint #TASK-3806 resolved by Vikram Singh (Near Block C Community Park, Sector 5)",
+        "date": "2026-09-20 17:00:06"
+      }
+    ]
   }
 ]

@@ -6245,3 +6245,432 @@ body.dark-theme .emg-popup-content {
     flex-direction: column;
   }
 }
+
+/* ==========================================================================
+   NEW FEATURES: EMPLOYEE PROFILE, ACCEPT TASK, ASSIGN TASK, DELETED ACCOUNTS
+   ========================================================================== */
+
+/* Employee Profile Trigger in Navbar */
+.emp-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 6px 14px 6px 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.emp-profile-btn:hover {
+  border-color: var(--green-primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.emp-nav-user-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.emp-nav-user-text span:first-child {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.emp-dropdown-icon {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* Employee Profile Popover */
+.employee-popover {
+  width: 320px;
+  right: 0;
+  top: 56px;
+}
+
+.emp-solved-stat-card {
+  border-left: 4px solid var(--green-primary);
+}
+
+.emp-aadhaar-card {
+  border-left: 4px solid var(--emerald-primary);
+}
+
+.emp-profile-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.delete-account-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.delete-account-btn:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+/* Permanent Delete Modal */
+.modal-delete-card {
+  max-width: 480px;
+}
+
+.header-danger-bg {
+  background: rgba(220, 38, 38, 0.08);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.pulse-danger {
+  animation: pulse-danger-anim 2s infinite;
+}
+
+@keyframes pulse-danger-anim {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+.delete-warning-banner {
+  display: flex;
+  gap: 12px;
+  background: rgba(220, 38, 38, 0.06);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  color: var(--text-main);
+  font-size: 0.84rem;
+  margin-bottom: 14px;
+}
+
+.delete-warning-banner i {
+  color: #dc2626;
+  font-size: 1.3rem;
+  margin-top: 2px;
+}
+
+.delete-warning-banner p {
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.btn-danger-action {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.btn-danger-action:hover {
+  background: #b91c1c !important;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.35) !important;
+}
+
+/* Government Employee Task Navigation Tabs */
+.govt-emp-nav-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--border-subtle);
+  padding-bottom: 10px;
+  overflow-x: auto;
+}
+
+.g-emp-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.g-emp-tab:hover {
+  color: var(--green-primary);
+  border-color: var(--green-primary);
+}
+
+.g-emp-tab.active {
+  background: var(--green-primary);
+  color: #ffffff;
+  border-color: var(--green-primary);
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.25);
+}
+
+.g-emp-tab.active .tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Action Buttons for Tasks */
+.tbl-btn-accept {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+}
+
+.tbl-btn-accept:hover {
+  background: #0369a1 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3) !important;
+}
+
+.tbl-btn-assign {
+  background: #d97706 !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 700 !important;
+}
+
+.tbl-btn-assign:hover {
+  background: #b45309 !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3) !important;
+}
+
+/* Quick Duration Selector Pills */
+.quick-duration-pills {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.duration-pill {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.duration-pill:hover {
+  border-color: var(--green-primary);
+  color: var(--green-primary);
+}
+
+.duration-pill.active {
+  background: var(--green-soft);
+  border-color: var(--green-primary);
+  color: var(--green-dark);
+}
+
+/* Task Info Banner */
+.task-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+
+.task-info-banner i {
+  font-size: 1.4rem;
+}
+
+.task-info-banner strong {
+  display: block;
+  font-size: 0.92rem;
+  color: var(--text-main);
+}
+
+/* Citizen Celebration Popup Modal */
+.citizen-celebration-card {
+  max-width: 520px;
+  text-align: center;
+  border: 2px solid rgba(217, 119, 6, 0.3);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  animation: celebration-card-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes celebration-card-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.celebration-header {
+  position: relative;
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(16, 185, 129, 0.12));
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.celebration-icon-bubble {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin: 0 auto 14px;
+  box-shadow: 0 6px 20px rgba(217, 119, 6, 0.2);
+}
+
+.celebration-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.celebration-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.celebration-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.celebration-body {
+  padding: 20px 24px 28px;
+}
+
+.reward-points-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(217, 119, 6, 0.08);
+  border: 1.5px dashed #d97706;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+}
+
+.reward-points-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.reward-points-left i {
+  font-size: 1.6rem;
+}
+
+.reward-points-label {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.reward-points-val {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #b45309;
+}
+
+.reward-points-tag {
+  background: #d97706;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.task-resolved-details-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.task-resolved-details-card h4 {
+  font-size: 0.95rem;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.resolved-meta-row {
+  display: flex;
+  gap: 16px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.popup-proof-photos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.popup-photo-box {
+  position: relative;
+  height: 110px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.popup-photo-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.celebration-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+/* Admin 7th Deleted Accounts Card */
+.admin-stat-card.card-deleted {
+  border-top-color: #dc2626;
+}
+
+.admin-stat-card.card-deleted:hover {
+  border-color: #dc2626;
+  box-shadow: 0 10px 24px rgba(220, 38, 38, 0.15);
+}
