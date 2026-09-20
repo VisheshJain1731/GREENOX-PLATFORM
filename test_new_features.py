@@ -208,14 +208,65 @@ def test_admin_user_management(email, phone):
     assert sess_del.get_json()["reason"] == "deleted"
     print(">>> TEST 4 PASSED: Admin Force Logout and User Permanent Removal successfully verified!")
 
+def test_phone_number_digit_validation():
+    print("\n--- TEST 5: Phone Number 10-Digit Validation on Registration ---")
+    ts = int(time.time() % 100000)
+    
+    # 1. Less than 10 digits (9 digits)
+    res_short = client.post("/api/register", json={
+        "first_name": "Short", "surname": "Phone", "phone": "987654321",
+        "email": f"short_{ts}@greenox.com", "password": "Secure@123",
+        "confirm_password": "Secure@123", "role": "citizen"
+    })
+    data_short = res_short.get_json()
+    print("Short phone (<10 digits): status=", res_short.status_code, "data=", data_short)
+    assert res_short.status_code == 400
+    assert "Phone number must be exactly 10 digits" in data_short.get("message", "")
+
+    # 2. More than 10 digits (11 digits)
+    res_long = client.post("/api/register", json={
+        "first_name": "Long", "surname": "Phone", "phone": "987654321099",
+        "email": f"long_{ts}@greenox.com", "password": "Secure@123",
+        "confirm_password": "Secure@123", "role": "citizen"
+    })
+    data_long = res_long.get_json()
+    print("Long phone (>10 digits): status=", res_long.status_code, "data=", data_long)
+    assert res_long.status_code == 400
+    assert "Phone number must be exactly 10 digits" in data_long.get("message", "")
+
+    # 3. Non-digit characters (10 chars but contains letters)
+    res_alpha = client.post("/api/register", json={
+        "first_name": "Alpha", "surname": "Phone", "phone": "987654321a",
+        "email": f"alpha_{ts}@greenox.com", "password": "Secure@123",
+        "confirm_password": "Secure@123", "role": "citizen"
+    })
+    data_alpha = res_alpha.get_json()
+    print("Non-digit phone: status=", res_alpha.status_code, "data=", data_alpha)
+    assert res_alpha.status_code == 400
+    assert "Phone number must be exactly 10 digits" in data_alpha.get("message", "")
+
+    # 4. Valid exactly 10-digit phone
+    valid_phone = f"987{ts:07d}"
+    res_valid = client.post("/api/register", json={
+        "first_name": "Valid", "surname": "PhoneUser", "phone": valid_phone,
+        "email": f"valid_phone_{ts}@greenox.com", "password": "Secure@123",
+        "confirm_password": "Secure@123", "role": "citizen"
+    })
+    data_valid = res_valid.get_json()
+    print("Valid 10-digit phone: status=", res_valid.status_code, "data=", data_valid)
+    assert res_valid.status_code == 200
+    assert data_valid.get("success") is True
+    print(">>> TEST 5 PASSED: 10-digit phone number validation on registration verified!")
+
 if __name__ == "__main__":
     try:
         test_login_lockout()
         email, phone, pts = test_registration_and_points_system()
         test_rewards_redemption(email, phone, pts)
         test_admin_user_management(email, phone)
+        test_phone_number_digit_validation()
         print("\n=======================================================")
-        print("ALL 4 FEATURE TESTS PASSED 100% SUCCESSFULLY!")
+        print("ALL 5 FEATURE TESTS PASSED 100% SUCCESSFULLY!")
         print("=======================================================")
     except Exception as e:
         print(f"\n[!] Test failed: {e}")

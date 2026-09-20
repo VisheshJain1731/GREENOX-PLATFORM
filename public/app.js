@@ -369,6 +369,12 @@ async function handleRegister(event) {
   const orgId = document.getElementById('regOrgId')?.value.trim() || '';
   const orgName = document.getElementById('regOrgName')?.value.trim() || '';
 
+  // Phone Number validation (must be exactly 10 digits)
+  if (!phone || phone.length !== 10 || !/^\d{10}$/.test(phone)) {
+    showAuthAlert('Registration failed: Phone number must be exactly 10 digits.', 'error');
+    return;
+  }
+
   // Password Policy check
   if (password.length === 0 || password.length > 20) {
     showAuthAlert('Password must be between 1 and 20 characters in length.', 'error');

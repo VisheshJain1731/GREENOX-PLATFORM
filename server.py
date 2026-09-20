@@ -147,6 +147,11 @@ def register():
     if not first_name or not phone or not email:
         return jsonify({"success": False, "message": "First name, phone number, and email must be filled."}), 400
 
+    # Phone number validation (must be exactly 10 digits)
+    if len(phone) != 10 or not phone.isdigit():
+        return jsonify({"success": False, "message": "Registration failed: Phone number must be exactly 10 digits."}), 400
+
+
     # For standard registration (non-google), validate password
     if not is_google:
         if not password:
