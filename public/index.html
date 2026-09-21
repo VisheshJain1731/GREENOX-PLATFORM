@@ -358,6 +358,43 @@
               </div>
             </div>
 
+            <!-- Profile Identity Pill Section (Matching Topbar User Pill) -->
+            <div class="profile-user-pill-section">
+              <div class="admin-user-pill profile-embedded-pill">
+                <i class="fa-solid fa-user-shield text-green"></i>
+                <span id="profilePillName">User Name</span>
+                <span class="role-badge-tag" id="profilePillBadge">Citizen</span>
+                <button type="button" class="admin-logout-btn" onclick="handleLogout()">
+                  <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                </button>
+              </div>
+            </div>
+
+            <!-- Profile Live Impact Stats Hub (Accessible inside Profile on Phone) -->
+            <div class="profile-stats-hub" id="profileStatsHub">
+              <div class="pstat-item">
+                <i class="fa-solid fa-recycle text-green"></i>
+                <div>
+                  <strong id="popoverStatWaste">Live Dynamic</strong>
+                  <span>Waste Cleaned</span>
+                </div>
+              </div>
+              <div class="pstat-item">
+                <i class="fa-solid fa-circle-check text-emerald"></i>
+                <div>
+                  <strong id="popoverStatComplaints">0</strong>
+                  <span>Solved</span>
+                </div>
+              </div>
+              <div class="pstat-item">
+                <i class="fa-solid fa-stopwatch text-blue"></i>
+                <div>
+                  <strong id="popoverStatResponse">24/7</strong>
+                  <span>Fast Response</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Profile Quick Actions & Hub (Moved from Navbar) -->
             <div class="profile-hub-section">
               <!-- 1. Greenox Points -->
@@ -626,6 +663,16 @@
           <i class="fa-solid fa-moon"></i>
         </button>
 
+        <!-- Desktop Navbar Pill (Visible on Laptop / Desktop) -->
+        <div class="admin-user-pill desktop-only-pill" id="empDesktopPill">
+          <i class="fa-solid fa-user-shield text-green"></i>
+          <span id="employeeTopNameDesktop">Employee Name</span>
+          <span class="role-badge-tag" id="employeeTypeBadgeDesktop">Govt Employee</span>
+          <button type="button" class="admin-logout-btn" onclick="handleLogout()">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+          </button>
+        </div>
+
         <!-- Employee Profile Wrapper with Dropdown -->
         <div class="avatar-profile-wrapper employee-profile-wrap">
           <button type="button" class="avatar-btn emp-profile-btn" id="employeeAvatarBtn" onclick="toggleEmployeeProfileMenu()">
@@ -765,8 +812,8 @@
             </div>
           </div>
 
-          <div class="tasks-table-responsive">
-            <table class="greenox-table">
+          <div class="tasks-table-responsive govt-tasks-table-wrap">
+            <table class="greenox-table govt-tasks-accordion-table">
               <thead>
                 <tr>
                   <th>Task ID</th>
@@ -795,8 +842,8 @@
             </div>
           </div>
 
-          <div class="tasks-table-responsive">
-            <table class="greenox-table">
+          <div class="tasks-table-responsive govt-tasks-table-wrap">
+            <table class="greenox-table govt-tasks-accordion-table">
               <thead>
                 <tr>
                   <th>Task ID</th>

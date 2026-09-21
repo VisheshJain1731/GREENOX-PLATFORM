@@ -617,6 +617,11 @@ function transitionToDashboard(user) {
     const empAadhaarTag = document.getElementById('empProfileAadhaarTag');
     if (empAadhaarTag) empAadhaarTag.textContent = user.aadhaar ? `Aadhaar: ${user.aadhaar}` : (user.org_id ? `Org ID: ${user.org_id}` : 'Official Identity Verified');
 
+    const empDeskName = document.getElementById('employeeTopNameDesktop');
+    if (empDeskName) empDeskName.textContent = fullName;
+    const empDeskBadge = document.getElementById('employeeTypeBadgeDesktop');
+    if (empDeskBadge) empDeskBadge.textContent = roleText;
+
     const avatarSeed = encodeURIComponent(user.first_name + (user.surname || ''));
     const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}&backgroundColor=d1fae5`;
     const empAvatarImg = document.getElementById('empAvatarImg');
@@ -654,6 +659,10 @@ function transitionToDashboard(user) {
   const fullName = `${user.first_name} ${user.surname}`.trim();
   document.getElementById('profileFullName').textContent = fullName;
   document.getElementById('profileRoleTag').textContent = user.role.toUpperCase();
+  const pillName = document.getElementById('profilePillName');
+  if (pillName) pillName.textContent = fullName;
+  const pillBadge = document.getElementById('profilePillBadge');
+  if (pillBadge) pillBadge.textContent = user.role.toUpperCase();
   document.getElementById('profilePhoneTag').innerHTML = `<i class="fa-solid fa-phone"></i> ${user.phone}`;
   document.getElementById('profileEmailTag').innerHTML = `<i class="fa-solid fa-envelope"></i> ${user.email}`;
   document.getElementById('profileAddressText').textContent = user.address || 'Green City Central';
@@ -848,15 +857,44 @@ function renderGovtAvailableTasks(tasks) {
 
   tasks.forEach(t => {
     const tr = document.createElement('tr');
+    tr.className = 'govt-task-row';
+    tr.setAttribute('onclick', 'toggleGovtTaskCard(this, event)');
     tr.innerHTML = `
-      <td><strong>${t.id}</strong></td>
-      <td><strong>${t.headline}</strong><br><small class="text-muted">${t.address}</small></td>
-      <td><span class="badge-pill">${t.waste_type}</span></td>
-      <td><img src="${t.photo}" alt="Proof" class="table-photo-thumb" /></td>
-      <td>${t.reporter_name}<br><small>${t.reporter_phone}</small></td>
-      <td><span class="status-tag status-pending">${t.status}</span></td>
-      <td>
-        <button class="tbl-btn tbl-btn-accept" onclick="acceptEmployeeTask('${t.id}')">
+      <td class="col-task-id">
+        <span class="mobile-field-label">Task ID</span>
+        <span class="field-value"><strong>${t.id}</strong></span>
+      </td>
+      <td class="col-task-heading">
+        <div class="mobile-heading-bar">
+          <div class="mobile-heading-main">
+            <span class="task-headline-text">${t.headline}</span>
+          </div>
+          <span class="mobile-accordion-arrow" title="Tap to view complaint details"><i class="fa-solid fa-chevron-down"></i></span>
+        </div>
+        <small class="text-muted task-address-text">${t.address}</small>
+      </td>
+      <td class="col-waste-category">
+        <span class="mobile-field-label">Waste Category</span>
+        <span class="field-value"><span class="badge-pill">${t.waste_type}</span></span>
+      </td>
+      <td class="col-photo-evidence">
+        <span class="mobile-field-label">Photo Evidence</span>
+        <span class="field-value">
+          <img src="${t.photo}" alt="Proof" class="table-photo-thumb" onclick="event.stopPropagation(); window.open('${t.photo}', '_blank')" />
+        </span>
+      </td>
+      <td class="col-citizen-info">
+        <span class="mobile-field-label">Citizen Info</span>
+        <span class="field-value">
+          <strong>${t.reporter_name}</strong><br><small><i class="fa-solid fa-phone"></i> ${t.reporter_phone}</small>
+        </span>
+      </td>
+      <td class="col-status">
+        <span class="mobile-field-label">Status</span>
+        <span class="field-value"><span class="status-tag status-pending">${t.status}</span></span>
+      </td>
+      <td class="col-action">
+        <button type="button" class="tbl-btn tbl-btn-accept" onclick="event.stopPropagation(); acceptEmployeeTask('${t.id}')">
           <i class="fa-solid fa-hand-holding-hand"></i> Accept the Task
         </button>
       </td>
@@ -878,21 +916,57 @@ function renderGovtAcceptedTasks(tasks) {
 
   tasks.forEach(t => {
     const tr = document.createElement('tr');
+    tr.className = 'govt-task-row';
+    tr.setAttribute('onclick', 'toggleGovtTaskCard(this, event)');
     tr.innerHTML = `
-      <td><strong>${t.id}</strong></td>
-      <td><strong>${t.headline}</strong><br><small class="text-muted">${t.address}</small></td>
-      <td><span class="badge-pill">${t.waste_type}</span></td>
-      <td><img src="${t.photo}" alt="Proof" class="table-photo-thumb" /></td>
-      <td>${t.reporter_name}<br><small><i class="fa-solid fa-phone"></i> ${t.reporter_phone}</small></td>
-      <td><small class="text-gold"><i class="fa-regular fa-clock"></i> ${t.accepted_at || t.assigned_at || 'Recently'}</small></td>
-      <td>
-        <button class="tbl-btn tbl-btn-resolve" onclick="openCompleteTaskModal('${t.id}', '${encodeURIComponent(t.headline || t.address)}', '${t.waste_type}')">
+      <td class="col-task-id">
+        <span class="mobile-field-label">Task ID</span>
+        <span class="field-value"><strong>${t.id}</strong></span>
+      </td>
+      <td class="col-task-heading">
+        <div class="mobile-heading-bar">
+          <div class="mobile-heading-main">
+            <span class="task-headline-text">${t.headline}</span>
+          </div>
+          <span class="mobile-accordion-arrow" title="Tap to view complaint details"><i class="fa-solid fa-chevron-down"></i></span>
+        </div>
+        <small class="text-muted task-address-text">${t.address}</small>
+      </td>
+      <td class="col-waste-category">
+        <span class="mobile-field-label">Waste Category</span>
+        <span class="field-value"><span class="badge-pill">${t.waste_type}</span></span>
+      </td>
+      <td class="col-photo-evidence">
+        <span class="mobile-field-label">Incident Photo</span>
+        <span class="field-value">
+          <img src="${t.photo}" alt="Proof" class="table-photo-thumb" onclick="event.stopPropagation(); window.open('${t.photo}', '_blank')" />
+        </span>
+      </td>
+      <td class="col-citizen-info">
+        <span class="mobile-field-label">Citizen Reporter</span>
+        <span class="field-value">
+          <strong>${t.reporter_name}</strong><br><small><i class="fa-solid fa-phone"></i> ${t.reporter_phone}</small>
+        </span>
+      </td>
+      <td class="col-status">
+        <span class="mobile-field-label">Accepted At</span>
+        <span class="field-value"><small class="text-gold"><i class="fa-regular fa-clock"></i> ${t.accepted_at || t.assigned_at || 'Recently'}</small></span>
+      </td>
+      <td class="col-action">
+        <button type="button" class="tbl-btn tbl-btn-resolve" onclick="event.stopPropagation(); openCompleteTaskModal('${t.id}', '${encodeURIComponent(t.headline || t.address)}', '${t.waste_type}')">
           <i class="fa-solid fa-circle-check"></i> Task Completion
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+function toggleGovtTaskCard(rowElement, event) {
+  if (event && event.target.closest('button, a, input, select, textarea, .table-photo-thumb')) {
+    return;
+  }
+  rowElement.classList.toggle('is-expanded');
 }
 
 // 3. My Solved Tasks History
@@ -2735,8 +2809,12 @@ async function loadSolvedShowcaseFeed() {
     if (data.success) {
       renderShowcaseCards(data.showcase || []);
       const count = (data.showcase || []).length;
-      document.getElementById('liveSolvedCount').textContent = `${count} Resolved Records`;
-      document.getElementById('statComplaintsSolved').textContent = count;
+      const liveSolvedEl = document.getElementById('liveSolvedCount');
+      if (liveSolvedEl) liveSolvedEl.textContent = `${count} Resolved Records`;
+      const statSolvedEl = document.getElementById('statComplaintsSolved');
+      if (statSolvedEl) statSolvedEl.textContent = count;
+      const popSolvedEl = document.getElementById('popoverStatComplaints');
+      if (popSolvedEl) popSolvedEl.textContent = count;
     }
   } catch (e) {
     console.error('Error fetching showcase:', e);

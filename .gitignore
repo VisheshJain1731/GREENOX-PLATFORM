@@ -5,4 +5,5 @@ tunnel.log
 *.log
 .gemini/
 .env
+backend/
 
