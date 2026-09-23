@@ -516,6 +516,9 @@ def get_employee_data():
         my_accepted_tasks = [t for t in tasks if t.get('status') in ['Accepted', 'Assigned', 'In Progress'] and matches_emp(t)]
         my_solved_tasks = [t for t in tasks if t.get('status') == 'Resolved' and (matches_emp(t) or ((t.get('resolved_by') or '').strip().lower() == name.lower() if name else False))]
         
+        ratings = [t.get('citizen_rating') for t in my_solved_tasks if t.get('citizen_rating')]
+        avg_rating = round(sum(ratings) / len(ratings), 1) if ratings else 5.0
+
         return jsonify({
             "success": True,
             "type": "govt",
@@ -524,7 +527,9 @@ def get_employee_data():
             "my_solved_tasks": my_solved_tasks,
             "pending_tasks": [t for t in tasks if t.get('status') != 'Resolved'],
             "all_tasks": tasks,
-            "solved_count": len(my_solved_tasks)
+            "solved_count": len(my_solved_tasks),
+            "avg_rating": avg_rating,
+            "rating_count": len(ratings)
         })
     else:
         bookings = load_json(BOOKINGS_JSON, [])
@@ -732,6 +737,76 @@ def employee_complete_task():
         "task": target,
         "awarded_points": awarded_pts,
         "notification": new_notif
+    })
+
+# ----------------- CITIZEN TASK RATING API -----------------
+
+@app.route('/api/citizen/rate-task', methods=['POST'])
+def rate_citizen_task():
+    data = request.get_json() or {}
+    task_id = data.get('task_id')
+    try:
+        rating = float(data.get('rating', 5.0))
+    except (ValueError, TypeError):
+        rating = 5.0
+    rating = max(1.0, min(5.0, round(rating, 1)))
+
+    feedback = data.get('feedback', '').strip()
+    tags = data.get('tags', [])
+    if isinstance(tags, str):
+        tags = [t.strip() for t in tags.split(',') if t.strip()]
+
+    citizen_email = data.get('citizen_email', '').strip().lower()
+    citizen_phone = data.get('citizen_phone', '').strip()
+    citizen_name = data.get('citizen_name', 'Citizen').strip()
+
+    if not task_id:
+        return jsonify({"success": False, "message": "Task ID is required."}), 400
+
+    tasks = load_json(TASKS_JSON, [])
+    target_task = None
+    for t in tasks:
+        if t.get('id') == task_id:
+            t['citizen_rating'] = rating
+            t['citizen_feedback'] = feedback
+            t['citizen_rating_tags'] = tags
+            t['citizen_rated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            t['citizen_rated_by'] = citizen_name
+            target_task = t
+            break
+
+    if not target_task:
+        return jsonify({"success": False, "message": "Task not found."}), 404
+
+    save_json(TASKS_JSON, tasks)
+
+    # Update showcase record if present
+    showcase = load_json(SHOWCASE_JSON, [])
+    for s in showcase:
+        if s.get('id') == task_id or s.get('headline') == target_task.get('headline') or s.get('address') == target_task.get('address'):
+            s['rating'] = rating
+            if feedback:
+                s['citizen_feedback'] = feedback
+            if tags:
+                s['rating_tags'] = tags
+            break
+    save_json(SHOWCASE_JSON, showcase)
+
+    # Update notification record if present
+    notifications = load_json(NOTIFICATIONS_JSON, [])
+    for n in notifications:
+        if n.get('ref_id') == task_id and n.get('type') == 'complaint_resolved':
+            n['rated'] = True
+            n['citizen_rating'] = rating
+            n['citizen_feedback'] = feedback
+            n['citizen_rating_tags'] = tags
+    save_json(NOTIFICATIONS_JSON, notifications)
+
+    return jsonify({
+        "success": True,
+        "message": f"Thank you! Your {int(rating) if rating.is_integer() else rating}-Star rating has been recorded successfully.",
+        "task": target_task,
+        "rating": rating
     })
 
 @app.route('/api/employee/delete-account', methods=['POST'])

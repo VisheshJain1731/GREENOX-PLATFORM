@@ -392,5 +392,119 @@
     "org_id": "",
     "org_name": "",
     "created_at": "2026-09-20 19:38:24"
+  },
+  {
+    "first_name": "Aarav",
+    "surname": "Patel",
+    "phone": "9988775052",
+    "email": "citizen_rate_1790175052@test.com",
+    "address": "Eco Green Boulevard",
+    "password": "CitRating@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-23 20:20:52",
+    "greenox_points": 42,
+    "points_history": [
+      {
+        "id": "PTS-75054",
+        "type": "earned",
+        "points": 42,
+        "reason": "Complaint #TASK-5052 resolved by Ramesh Kumar (Sector 14 Green Park Avenue)",
+        "date": "2026-09-23 20:20:54"
+      }
+    ]
+  },
+  {
+    "first_name": "Ramesh",
+    "surname": "Kumar",
+    "phone": "9911275052",
+    "email": "emp_rate_1790175052@test.com",
+    "address": "Sanitation Zone 1",
+    "password": "EmpRating@123",
+    "role": "employee",
+    "aadhaar": "1234567890",
+    "employee_type": "govt",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-23 20:20:52"
+  },
+  {
+    "first_name": "Rohan",
+    "surname": "Sharma",
+    "phone": "9876575071",
+    "email": "citizen_1790175071@test.com",
+    "address": "Flat 402, Green Enclave",
+    "password": "CitPass@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-23 20:21:11",
+    "greenox_points": 57,
+    "points_history": [
+      {
+        "id": "PTS-75072",
+        "type": "earned",
+        "points": 57,
+        "reason": "Complaint #TASK-5071 resolved by Vikram Singh (Near Block C Community Park, Sector 5)",
+        "date": "2026-09-23 20:21:12"
+      }
+    ]
+  },
+  {
+    "first_name": "Valid",
+    "surname": "PhoneUser",
+    "phone": "9870075090",
+    "email": "valid_phone_75090@greenox.com",
+    "address": "Green City Central",
+    "password": "Secure@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-23 20:21:30"
+  },
+  {
+    "first_name": "Aarav",
+    "surname": "Patel",
+    "phone": "9988775220",
+    "email": "citizen_rate_1790175220@test.com",
+    "address": "Eco Green Boulevard",
+    "password": "CitRating@123",
+    "role": "citizen",
+    "aadhaar": "",
+    "employee_type": "",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-23 20:23:40",
+    "greenox_points": 55,
+    "points_history": [
+      {
+        "id": "PTS-75222",
+        "type": "earned",
+        "points": 55,
+        "reason": "Complaint #TASK-5221 resolved by Ramesh Kumar (Sector 14 Green Park Avenue)",
+        "date": "2026-09-23 20:23:42"
+      }
+    ]
+  },
+  {
+    "first_name": "Ramesh",
+    "surname": "Kumar",
+    "phone": "9911275220",
+    "email": "emp_rate_1790175220@test.com",
+    "address": "Sanitation Zone 1",
+    "password": "EmpRating@123",
+    "role": "employee",
+    "aadhaar": "1234567890",
+    "employee_type": "govt",
+    "org_id": "",
+    "org_name": "",
+    "created_at": "2026-09-23 20:23:40"
   }
 ]

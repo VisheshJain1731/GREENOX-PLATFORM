@@ -976,12 +976,15 @@ function renderGovtSolvedTasks(tasks) {
   tbody.innerHTML = '';
 
   if (!tasks || tasks.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4"><i class="fa-solid fa-clock-rotate-left text-muted"></i> No completed task records yet. Complete accepted tasks to build your verified resolution record!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4"><i class="fa-solid fa-clock-rotate-left text-muted"></i> No completed task records yet. Complete accepted tasks to build your verified resolution record!</td></tr>`;
     return;
   }
 
   tasks.forEach(t => {
     const afterPhotoSrc = t.resolved_after_photo || 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=400&q=80';
+    const ratingVal = t.citizen_rating ? Number(t.citizen_rating).toFixed(1) : '5.0';
+    const ratingHtml = `<span class="rating-badge-pill"><i class="fa-solid fa-star"></i> ${ratingVal} / 5</span>${t.citizen_feedback ? `<br><small class="text-muted" title="${t.citizen_feedback}">"${t.citizen_feedback.slice(0, 24)}${t.citizen_feedback.length > 24 ? '...' : ''}"</small>` : ''}`;
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>
@@ -1005,6 +1008,7 @@ function renderGovtSolvedTasks(tasks) {
       <td><strong class="text-main">${t.resolved_time_consumed || '30 mins'}</strong></td>
       <td>${t.reporter_name}<br><small>${t.reporter_phone}</small></td>
       <td><span class="status-tag status-resolved"><i class="fa-solid fa-check-double"></i> Cleaned</span></td>
+      <td>${ratingHtml}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1547,7 +1551,7 @@ function renderCitizenReports(tasks) {
   const tbody = document.getElementById('citizenReportsTableBody');
   tbody.innerHTML = '';
   if (!tasks || tasks.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No waste reports submitted yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No waste reports submitted yet.</td></tr>';
     return;
   }
   tasks.forEach(t => {
@@ -1555,14 +1559,29 @@ function renderCitizenReports(tasks) {
     if (t.status === 'Resolved') statusClass = 'status-resolved';
     if (t.status === 'Closed (Heavy Load)') statusClass = 'status-closed';
 
+    let ratingHtml = '<span class="rating-unrated-tag">-</span>';
+    if (t.status === 'Resolved') {
+      if (t.citizen_rating) {
+        ratingHtml = `<span class="rating-badge-pill"><i class="fa-solid fa-star"></i> ${Number(t.citizen_rating).toFixed(1)} / 5</span>${t.citizen_feedback ? `<br><small class="text-muted" title="${t.citizen_feedback}">"${t.citizen_feedback.slice(0, 20)}..."</small>` : ''}`;
+      } else {
+        const headlineEnc = encodeURIComponent(t.headline || t.address || 'Complaint');
+        const empNameEnc = encodeURIComponent(t.resolved_by || t.assigned_team || 'Municipal Squad');
+        const durationEnc = encodeURIComponent(t.resolved_time_consumed || '30 mins');
+        const beforePhotoEnc = encodeURIComponent(t.photo || '');
+        const afterPhotoEnc = encodeURIComponent(t.resolved_after_photo || '');
+        ratingHtml = `<button type="button" class="rating-btn-action" onclick="openRateTaskModalFromHistory('${t.id}', '${headlineEnc}', '${empNameEnc}', '${durationEnc}', '${beforePhotoEnc}', '${afterPhotoEnc}')"><i class="fa-solid fa-star"></i> Rate Work</button>`;
+      }
+    }
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${t.id}</strong></td>
-      <td>${t.address}</td>
+      <td><strong>${t.headline || t.address}</strong><br><small class="text-muted">${t.address}</small></td>
       <td><span class="badge-pill">${t.waste_type}</span></td>
       <td><img src="${t.photo}" alt="Proof" class="table-photo-thumb" /></td>
       <td>${t.created_at || 'Recently'}</td>
       <td><span class="status-tag ${statusClass}">${t.status}</span></td>
+      <td>${ratingHtml}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -1751,7 +1770,7 @@ function renderAdminSolvedHistory(solvedTasks) {
   tbody.innerHTML = '';
 
   if (!solvedTasks || solvedTasks.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4"><i class="fa-solid fa-circle-check text-green"></i> No solved complaint records in archive yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted py-4"><i class="fa-solid fa-circle-check text-green"></i> No solved complaint records in archive yet.</td></tr>`;
     return;
   }
 
@@ -1760,6 +1779,8 @@ function renderAdminSolvedHistory(solvedTasks) {
     const durationStr = t.resolved_time_consumed || t.time_consumed || '30 mins';
     const solvedTime = t.resolved_at || t.points_awarded_at || t.created_at || 'Recently';
     const pts = t.awarded_points ? `+${t.awarded_points} pts` : '+50 pts';
+    const ratingVal = t.citizen_rating ? Number(t.citizen_rating).toFixed(1) : '5.0';
+    const ratingHtml = `<span class="rating-badge-pill"><i class="fa-solid fa-star"></i> ${ratingVal} / 5</span>${t.citizen_feedback ? `<br><small class="text-muted" title="${t.citizen_feedback}">"${t.citizen_feedback.slice(0, 20)}..."</small>` : ''}`;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -1797,6 +1818,7 @@ function renderAdminSolvedHistory(solvedTasks) {
         <small class="text-muted">${t.assigned_team || 'Municipal Squad'}</small>
       </td>
       <td><strong class="text-green">${pts}</strong></td>
+      <td>${ratingHtml}</td>
       <td>
         <button type="button" class="tbl-btn tbl-btn-delete" onclick="adminDeleteSolvedTask('${t.id}')" title="Delete record from solved archive">
           <i class="fa-solid fa-trash-can"></i> Delete
@@ -2840,6 +2862,9 @@ function renderShowcaseCards(items) {
     const afterWrapId = `baAfterWrap_${index}`;
     const handleId = `baHandle_${index}`;
 
+    const ratingVal = item.rating ? Number(item.rating).toFixed(1) : '5.0';
+    const feedbackQuote = item.citizen_feedback ? `<div class="showcase-review-snippet" style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px; font-style: italic; border-left: 2.5px solid #10b981; padding-left: 8px;"><i class="fa-solid fa-quote-left text-green" style="font-size: 0.75rem;"></i> "${item.citizen_feedback}"</div>` : '';
+
     const card = document.createElement('div');
     card.className = 'showcase-card';
     card.innerHTML = `
@@ -2869,8 +2894,9 @@ function renderShowcaseCards(items) {
         <p class="showcase-waste-type"><i class="fa-solid fa-trash-can"></i> ${item.waste_type}</p>
         <div class="showcase-footer-row">
           <span><i class="fa-solid fa-users"></i> ${item.team}</span>
-          <span><i class="fa-solid fa-star text-gold"></i> 5.0 Rating</span>
+          <span><i class="fa-solid fa-star text-gold"></i> ${ratingVal} Rating</span>
         </div>
+        ${feedbackQuote}
       </div>
     `;
     container.appendChild(card);
@@ -3238,9 +3264,186 @@ async function fetchUserNotifications() {
   } catch (e) { }
 }
 
+// ==========================================================================
+// 15. CITIZEN 5-STAR WORK RATING CONTROLLERS
+// ==========================================================================
+
+let selectedPopupRating = 5;
+let selectedPopupTags = ['✨ Spotless Clean', '🌱 Eco Champion'];
+let currentRatingTaskId = null;
+
+const RATING_DESCRIPTIONS = {
+  1: { score: '1.0 / 5', label: '⭐ Poor / Needs Rework', btn: 'Submit 1-Star Rating' },
+  2: { score: '2.0 / 5', label: '⭐⭐ Fair Clean', btn: 'Submit 2-Star Rating' },
+  3: { score: '3.0 / 5', label: '⭐⭐⭐ Good Job', btn: 'Submit 3-Star Rating' },
+  4: { score: '4.0 / 5', label: '⭐⭐⭐⭐ Very Good & Clean', btn: 'Submit 4-Star Rating' },
+  5: { score: '5.0 / 5', label: '⭐⭐⭐⭐⭐ Outstanding & Spotless!', btn: 'Submit 5-Star Rating & Claim Reward' }
+};
+
+function selectPopupStar(rating) {
+  selectedPopupRating = rating;
+  updateStarButtonsUI(rating);
+  updateRatingDescriptorUI(rating);
+
+  const clickedBtn = document.querySelector(`.star-rating-btn[data-star="${rating}"]`);
+  if (clickedBtn) {
+    clickedBtn.classList.remove('pop-animate');
+    void clickedBtn.offsetWidth;
+    clickedBtn.classList.add('pop-animate');
+  }
+}
+
+function previewPopupStar(rating) {
+  document.querySelectorAll('.star-rating-btn').forEach(btn => {
+    const starNum = parseInt(btn.getAttribute('data-star') || '0', 10);
+    if (starNum <= rating) {
+      btn.classList.add('hover-active');
+    } else {
+      btn.classList.remove('hover-active');
+    }
+  });
+}
+
+function resetPopupStarPreview() {
+  document.querySelectorAll('.star-rating-btn').forEach(btn => {
+    btn.classList.remove('hover-active');
+  });
+  updateStarButtonsUI(selectedPopupRating);
+}
+
+function updateStarButtonsUI(rating) {
+  document.querySelectorAll('.star-rating-btn').forEach(btn => {
+    const starNum = parseInt(btn.getAttribute('data-star') || '0', 10);
+    if (starNum <= rating) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function updateRatingDescriptorUI(rating) {
+  const descEl = document.getElementById('popupRatingDescriptor');
+  const submitBtn = document.getElementById('submitPopupRatingBtn');
+  const info = RATING_DESCRIPTIONS[rating] || RATING_DESCRIPTIONS[5];
+
+  if (descEl) {
+    descEl.innerHTML = `<span class="rating-score-num">${info.score}</span> — <strong class="rating-score-label">${info.label}</strong>`;
+  }
+  if (submitBtn) {
+    submitBtn.innerHTML = `<i class="fa-solid fa-star"></i> ${info.btn}`;
+  }
+}
+
+function toggleRatingTag(chip, tagName) {
+  const isSelected = chip.classList.toggle('selected');
+  if (isSelected) {
+    if (!selectedPopupTags.includes(tagName)) selectedPopupTags.push(tagName);
+  } else {
+    selectedPopupTags = selectedPopupTags.filter(t => t !== tagName);
+  }
+}
+
+async function submitCitizenTaskRating() {
+  const taskId = document.getElementById('popupTaskId')?.value || currentRatingTaskId;
+  if (!taskId) {
+    showToast('Task ID not found for rating', 'error');
+    return;
+  }
+
+  if (!currentUser) {
+    showToast('Please log in as Citizen to submit rating', 'error');
+    return;
+  }
+
+  const feedbackText = document.getElementById('popupCitizenFeedbackText')?.value.trim() || '';
+  const fullName = `${currentUser.first_name || ''} ${currentUser.surname || ''}`.trim() || currentUser.name || 'Citizen';
+
+  const submitBtn = document.getElementById('submitPopupRatingBtn');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Submitting Rating...';
+  }
+
+  try {
+    const res = await fetch('/api/citizen/rate-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task_id: taskId,
+        rating: selectedPopupRating,
+        feedback: feedbackText,
+        tags: selectedPopupTags,
+        citizen_email: currentUser.email,
+        citizen_phone: currentUser.phone,
+        citizen_name: fullName
+      })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(`⭐ ${data.message}`, 'success');
+
+      // Switch popup to success state
+      const ratingBox = document.getElementById('popupRatingBox');
+      const successBox = document.getElementById('popupRatingSuccessBox');
+      if (ratingBox) ratingBox.classList.add('hidden');
+      if (successBox) {
+        successBox.classList.remove('hidden');
+        const starsText = '⭐'.repeat(Math.round(selectedPopupRating));
+        const titleEl = document.getElementById('popupSuccessRatingTitle');
+        const msgEl = document.getElementById('popupSuccessRatingMessage');
+        if (titleEl) titleEl.textContent = `Thank You! Rated ${selectedPopupRating}/5 ${starsText}`;
+        if (msgEl) msgEl.textContent = `Your ${selectedPopupRating}-Star review has been credited to the municipal squad. Thank you for helping keep our city clean!`;
+      }
+
+      loadCitizenPoints();
+      loadSolvedShowcaseFeed();
+      if (currentUser && currentUser.role === 'citizen') {
+        const histModal = document.getElementById('citizenHistoryModal');
+        if (histModal && !histModal.classList.contains('hidden')) {
+          openCitizenHistoryModal();
+        }
+      }
+    } else {
+      showToast(data.message || 'Failed to submit rating', 'error');
+    }
+  } catch (e) {
+    showToast('Network error submitting rating', 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      const info = RATING_DESCRIPTIONS[selectedPopupRating] || RATING_DESCRIPTIONS[5];
+      submitBtn.innerHTML = `<i class="fa-solid fa-star"></i> ${info.btn}`;
+    }
+  }
+}
+
+function openRateTaskModalFromHistory(taskId, encHeadline, encEmpName, encTime, encBeforePhoto, encAfterPhoto) {
+  const headline = encHeadline ? decodeURIComponent(encHeadline) : `Task #${taskId}`;
+  const empName = encEmpName ? decodeURIComponent(encEmpName) : 'Municipal Squad';
+  const duration = encTime ? decodeURIComponent(encTime) : '30 mins';
+  const beforePhoto = encBeforePhoto ? decodeURIComponent(encBeforePhoto) : '';
+  const afterPhoto = encAfterPhoto ? decodeURIComponent(encAfterPhoto) : '';
+
+  triggerCitizenResolutionPopup({
+    ref_id: taskId,
+    headline: headline,
+    employee_name: empName,
+    time_consumed: duration,
+    before_photo: beforePhoto,
+    after_photo: afterPhoto,
+    awarded_points: 50
+  });
+}
+
 function triggerCitizenResolutionPopup(notif) {
   const modal = document.getElementById('citizenResolutionPopupModal');
   if (!modal) return;
+
+  currentRatingTaskId = notif.ref_id || notif.task_id || notif.id;
+  const taskIdInput = document.getElementById('popupTaskId');
+  if (taskIdInput) taskIdInput.value = currentRatingTaskId;
 
   const ptsVal = notif.awarded_points ? `+${notif.awarded_points} Points` : '+50 Points';
   const ptsEl = document.getElementById('popupAwardedPoints');
@@ -3250,7 +3453,7 @@ function triggerCitizenResolutionPopup(notif) {
   if (headlineEl) headlineEl.textContent = notif.headline || notif.address || 'Municipal Waste Cleanup';
 
   const empEl = document.getElementById('popupEmployeeName');
-  if (empEl) empEl.textContent = notif.employee_name || 'Municipal Squad';
+  if (empEl) empEl.textContent = notif.employee_name || notif.team || 'Municipal Squad';
 
   const timeEl = document.getElementById('popupTimeConsumed');
   if (timeEl) timeEl.textContent = notif.time_consumed || '30 mins';
@@ -3275,6 +3478,29 @@ function triggerCitizenResolutionPopup(notif) {
     } else {
       if (afterBox) afterBox.classList.add('hidden');
     }
+  }
+
+  // Reset rating boxes state
+  const ratingBox = document.getElementById('popupRatingBox');
+  const successBox = document.getElementById('popupRatingSuccessBox');
+  const feedbackInput = document.getElementById('popupCitizenFeedbackText');
+  if (feedbackInput) feedbackInput.value = notif.citizen_feedback || '';
+
+  if (notif.rated || notif.citizen_rating) {
+    if (ratingBox) ratingBox.classList.add('hidden');
+    if (successBox) {
+      successBox.classList.remove('hidden');
+      const r = notif.citizen_rating || 5;
+      const starsText = '⭐'.repeat(Math.round(r));
+      const titleEl = document.getElementById('popupSuccessRatingTitle');
+      const msgEl = document.getElementById('popupSuccessRatingMessage');
+      if (titleEl) titleEl.textContent = `Rated ${r}/5 ${starsText}`;
+      if (msgEl) msgEl.textContent = 'You have already rated this municipal resolution. Thank you!';
+    }
+  } else {
+    if (ratingBox) ratingBox.classList.remove('hidden');
+    if (successBox) successBox.classList.add('hidden');
+    selectPopupStar(5);
   }
 
   modal.classList.remove('hidden');

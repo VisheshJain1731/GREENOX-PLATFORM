@@ -1,5 +1,73 @@
 [
   {
+    "id": "CASE-5223",
+    "headline": "Sector 14 Green Park Avenue",
+    "address": "Sector 14 Green Park Avenue",
+    "waste_type": "Wet & Organic Waste",
+    "before_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "after_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "time_consumed": "20 mins",
+    "duration_minutes": 20,
+    "team": "Ramesh Kumar",
+    "solved_at": "Just now",
+    "rating": 5.0,
+    "status": "Resolved & Verified",
+    "citizen_feedback": "Outstanding cleaning work! Spotless within 20 mins. Ramesh Kumar was very diligent.",
+    "rating_tags": [
+      "⚡ Quick Response",
+      "✨ Spotless Clean",
+      "🌱 Eco Champion"
+    ]
+  },
+  {
+    "id": "CASE-5089",
+    "headline": "Sector 21 Garbage Pile",
+    "address": "Sector 21 Garbage Pile",
+    "waste_type": "Plastic & Dry Waste",
+    "before_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "after_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "time_consumed": "25 mins",
+    "duration_minutes": 25,
+    "team": "Government Municipal Squad",
+    "solved_at": "Just now",
+    "rating": 5.0,
+    "status": "Resolved & Verified"
+  },
+  {
+    "id": "CASE-5073",
+    "headline": "Near Block C Community Park, Sector 5",
+    "address": "Near Block C Community Park, Sector 5",
+    "waste_type": "Plastic & Dry Waste",
+    "before_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "after_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "time_consumed": "25 mins",
+    "duration_minutes": 25,
+    "team": "Vikram Singh",
+    "solved_at": "Just now",
+    "rating": 5.0,
+    "status": "Resolved & Verified"
+  },
+  {
+    "id": "CASE-5054",
+    "headline": "Sector 14 Green Park Avenue",
+    "address": "Sector 14 Green Park Avenue",
+    "waste_type": "Wet & Organic Waste",
+    "before_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "after_photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "time_consumed": "20 mins",
+    "duration_minutes": 20,
+    "team": "Ramesh Kumar",
+    "solved_at": "Just now",
+    "rating": 5.0,
+    "status": "Resolved & Verified",
+    "citizen_feedback": "Outstanding cleaning work! Spotless within 20 mins. Ramesh Kumar was very diligent.",
+    "rating_tags": [
+      "⚡ Quick Response",
+      "✨ Spotless Clean",
+      "🌱 Eco Champion"
+    ]
+  },
+  {
     "id": "CASE-4179",
     "headline": "Sector 22, Green Avenue (GPS: 28.6180, 77.2246)",
     "address": "Sector 22, Green Avenue (GPS: 28.6180, 77.2246)",

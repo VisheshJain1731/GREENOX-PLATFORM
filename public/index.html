@@ -883,6 +883,7 @@
                   <th>Time Taken</th>
                   <th>Citizen Info</th>
                   <th>Status</th>
+                  <th>Citizen Rating</th>
                 </tr>
               </thead>
               <tbody id="govtSolvedTableBody">
@@ -1260,6 +1261,7 @@
                   <th>Before / After Proof</th>
                   <th>Duration & Team</th>
                   <th>Points</th>
+                  <th>Citizen Rating</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -1927,9 +1929,10 @@
                   <th>Task ID</th>
                   <th>Reported Location</th>
                   <th>Category</th>
-                  <th>Photo</th>
+                  <th>Photo Proof</th>
                   <th>Dispatched Date</th>
                   <th>Status</th>
+                  <th>Citizen Rating</th>
                 </tr>
               </thead>
               <tbody id="citizenReportsTableBody"></tbody>
@@ -2557,10 +2560,12 @@
   </div>
 
   <!-- ====================================================
-       MODAL: CITIZEN RESOLUTION CELEBRATION POPUP
+       MODAL: CITIZEN RESOLUTION CELEBRATION POPUP & 5-STAR WORK RATING
   ==================================================== -->
   <div id="citizenResolutionPopupModal" class="modal-backdrop hidden" onclick="handleBackdropClick(event, 'citizenResolutionPopupModal')">
     <div class="modal-card citizen-celebration-card">
+      <input type="hidden" id="popupTaskId" />
+
       <div class="celebration-header">
         <div class="celebration-icon-bubble pulse-gold">
           <i class="fa-solid fa-trophy text-gold"></i>
@@ -2603,11 +2608,78 @@
           </div>
         </div>
 
-        <div class="celebration-actions">
-          <button type="button" class="primary-btn gold-btn celebration-btn" onclick="closeCitizenResolutionPopup()">
-            <i class="fa-solid fa-gift"></i> Awesome! Claim Points & Continue
+        <!-- 5-STAR CITIZEN RATING SECTION -->
+        <div class="citizen-rating-box" id="popupRatingBox">
+          <div class="rating-box-header">
+            <div class="rating-badge-icon"><i class="fa-solid fa-star text-gold"></i></div>
+            <div>
+              <h4 class="rating-box-title">Rate the Cleaning Work (Up to 5 Stars)</h4>
+              <p class="rating-box-sub">Your feedback directly rates the municipal squad and rewards outstanding performance.</p>
+            </div>
+          </div>
+
+          <!-- Interactive 5 Star Widget -->
+          <div class="interactive-star-rating" id="interactiveStarRating">
+            <button type="button" class="star-rating-btn active" data-star="1" onclick="selectPopupStar(1)" onmouseenter="previewPopupStar(1)" onmouseleave="resetPopupStarPreview()" aria-label="1 Star">
+              <i class="fa-solid fa-star"></i>
+            </button>
+            <button type="button" class="star-rating-btn active" data-star="2" onclick="selectPopupStar(2)" onmouseenter="previewPopupStar(2)" onmouseleave="resetPopupStarPreview()" aria-label="2 Stars">
+              <i class="fa-solid fa-star"></i>
+            </button>
+            <button type="button" class="star-rating-btn active" data-star="3" onclick="selectPopupStar(3)" onmouseenter="previewPopupStar(3)" onmouseleave="resetPopupStarPreview()" aria-label="3 Stars">
+              <i class="fa-solid fa-star"></i>
+            </button>
+            <button type="button" class="star-rating-btn active" data-star="4" onclick="selectPopupStar(4)" onmouseenter="previewPopupStar(4)" onmouseleave="resetPopupStarPreview()" aria-label="4 Stars">
+              <i class="fa-solid fa-star"></i>
+            </button>
+            <button type="button" class="star-rating-btn active" data-star="5" onclick="selectPopupStar(5)" onmouseenter="previewPopupStar(5)" onmouseleave="resetPopupStarPreview()" aria-label="5 Stars">
+              <i class="fa-solid fa-star"></i>
+            </button>
+          </div>
+
+          <!-- Dynamic Text Descriptor -->
+          <div class="rating-descriptor-text" id="popupRatingDescriptor">
+            <span class="rating-score-num">5.0 / 5</span> — <strong class="rating-score-label">⭐⭐⭐⭐⭐ Outstanding & Spotless!</strong>
+          </div>
+
+          <!-- Quick Feedback Tags -->
+          <div class="rating-tags-wrap">
+            <span class="tags-hint">Quick Appreciation Tags:</span>
+            <div class="rating-tags-grid">
+              <button type="button" class="rating-tag-chip" onclick="toggleRatingTag(this, '⚡ Quick Response')">⚡ Quick Response</button>
+              <button type="button" class="rating-tag-chip selected" onclick="toggleRatingTag(this, '✨ Spotless Clean')">✨ Spotless Clean</button>
+              <button type="button" class="rating-tag-chip selected" onclick="toggleRatingTag(this, '🌱 Eco Champion')">🌱 Eco Champion</button>
+              <button type="button" class="rating-tag-chip" onclick="toggleRatingTag(this, '🤝 Polite Worker')">🤝 Polite Worker</button>
+              <button type="button" class="rating-tag-chip" onclick="toggleRatingTag(this, '📸 Clear Proof')">📸 Clear Proof</button>
+              <button type="button" class="rating-tag-chip" onclick="toggleRatingTag(this, '🗑️ Zero Litter Left')">🗑️ Zero Litter Left</button>
+            </div>
+          </div>
+
+          <!-- Review Note Textarea -->
+          <div class="rating-feedback-input-wrap">
+            <textarea id="popupCitizenFeedbackText" rows="2" placeholder="Write a note of appreciation or review for the employee (optional)..."></textarea>
+          </div>
+
+          <div class="celebration-actions">
+            <button type="button" class="primary-btn gold-btn celebration-btn" id="submitPopupRatingBtn" onclick="submitCitizenTaskRating()">
+              <i class="fa-solid fa-star"></i> Submit 5-Star Rating & Claim Reward
+            </button>
+            <button type="button" class="btn-subtle-skip" onclick="closeCitizenResolutionPopup()">
+              Rate Later & Continue
+            </button>
+          </div>
+        </div>
+
+        <!-- Rating Already Submitted / Success State -->
+        <div class="rating-success-box hidden" id="popupRatingSuccessBox">
+          <div class="success-star-bubble"><i class="fa-solid fa-circle-check text-green"></i></div>
+          <h4 id="popupSuccessRatingTitle">Rating Submitted Successfully!</h4>
+          <p id="popupSuccessRatingMessage">Thank you! Your 5-Star rating and feedback have been recorded to honor the municipal squad's performance.</p>
+          <button type="button" class="primary-btn gold-btn celebration-btn mt-3" onclick="closeCitizenResolutionPopup()">
+            <i class="fa-solid fa-check"></i> Done & Continue
           </button>
         </div>
+
       </div>
     </div>
   </div>
